@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_project_1/CreateUserScreen.dart';
+import 'package:flutter_project_1/EditUserScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// ─── Design Tokens (mirrors CreateUserScreen) ────────────────────────────────
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
-  static const bg          = Color(0xFFF8F4F0); // warm parchment canvas
+  static const bg          = Color(0xFFF8F4F0);
   static const surface     = Color(0xFFFFFFFF);
-  static const primary     = Color(0xFFE60023); // Pinterest red
+  static const primary     = Color(0xFFE60023);
   static const primaryDark = Color(0xFFAD081B);
   static const ink         = Color(0xFF111111);
   static const muted       = Color(0xFF767676);
   static const border      = Color(0xFFE0DAD4);
-  static const chip        = Color(0xFFFFF0F1); // soft red tint
+  static const chip        = Color(0xFFFFF0F1);
   static const activeGreen = Color(0xFF00A699);
-  static const headerBg    = Color(0xFFFDF9F7); // subtle warm header
+  static const headerBg    = Color(0xFFFDF9F7);
   static const blueChip    = Color(0xFFEBF5FF);
   static const blueBorder  = Color(0xFFBDDAF7);
   static const blueText    = Color(0xFF1A6FB0);
 }
 
-// ✅ Model
+// ─── Model ────────────────────────────────────────────────────────────────────
 class UserModel {
   final int id;
   final String username;
@@ -52,7 +53,7 @@ class UserModel {
   }
 }
 
-// ✅ Stateful
+// ─── Stateful Widget ──────────────────────────────────────────────────────────
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -70,7 +71,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  // ── token ──────────────────────────────────────────────────────────────────
   final String token =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODA5MTgzMCwiZXhwIjoxNzc4Njk2NjMwfQ.BnqGBNP7hsNesCzOvuim1t1MfvJzrHSZkExIf6M_zYg";
 
@@ -94,7 +94,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     super.dispose();
   }
 
-  // ✅ GET API — unchanged logic
   Future<void> fetchUsers() async {
     setState(() {
       isLoading = true;
@@ -117,18 +116,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         final url = Uri.parse(urlStr);
         final response = await http.get(url, headers: headers);
 
-        print("── Trying: $urlStr");
-        print("   STATUS: ${response.statusCode}");
-        print("   BODY:   ${response.body}");
-
         if (response.statusCode == 204 || response.body.trim().isEmpty) {
-          print("   → 204 / empty body, trying next URL...");
           continue;
         }
 
         if (response.statusCode == 200) {
           final dynamic decoded = jsonDecode(response.body);
-
           List<dynamic> rawList = [];
 
           if (decoded is List) {
@@ -146,8 +139,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 decoded['items'] is List) {
               rawList = decoded['items'];
             } else {
-              print(
-                  "   ⚠️ Unknown response structure. Keys: ${decoded.keys.toList()}");
               setState(() {
                 errorMessage =
                     "Unexpected response format. Keys: ${decoded.keys.toList()}";
@@ -157,10 +148,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             }
           }
 
-          if (rawList.isEmpty) {
-            print("   → List is empty, trying next URL...");
-            continue;
-          }
+          if (rawList.isEmpty) continue;
 
           setState(() {
             users = rawList
@@ -168,14 +156,9 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 .toList();
             isLoading = false;
           });
-          print("   ✅ Loaded ${users.length} users from $urlStr");
           return;
-        } else {
-          print("   → HTTP ${response.statusCode}, trying next URL...");
-          continue;
         }
       } catch (e) {
-        print("   ❌ Exception: $e");
         continue;
       }
     }
@@ -186,12 +169,30 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     });
   }
 
+  // ── Open EditUserScreen and refresh list if saved ──────────────────────────
+  void _openEditScreen(UserModel user) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditUserScreen(
+          userId: user.id,
+          initialUsername: user.username,
+          initialEmail: user.email,
+          initialRole: user.role,
+          initialIsActive: user.isActive,
+        ),
+      ),
+    );
+    if (result == true) {
+      fetchUsers();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _C.bg,
 
-      // ── AppBar ─────────────────────────────────────────────────────────────
       appBar: AppBar(
         backgroundColor: _C.surface,
         elevation: 0,
@@ -225,14 +226,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           child: Container(height: 1, color: _C.border),
         ),
         actions: [
-          // Refresh button
-          _AppBarIconButton(
-            icon: Icons.refresh_rounded,
-            onTap: fetchUsers,
-          ),
+          _AppBarIconButton(icon: Icons.refresh_rounded, onTap: fetchUsers),
           const SizedBox(width: 8),
-
-          // CREATE button
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: _CreateButton(
@@ -250,7 +245,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         ],
       ),
 
-      // ── Body ───────────────────────────────────────────────────────────────
       body: FadeTransition(
         opacity: _fadeAnim,
         child: SlideTransition(
@@ -261,7 +255,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Page heading ──────────────────────────────────────────
+                  // Page heading
                   Row(
                     children: [
                       const Text(
@@ -282,7 +276,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             color: _C.chip,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: _C.primary.withOpacity(0.18), width: 1),
+                                color: _C.primary.withOpacity(0.18),
+                                width: 1),
                           ),
                           child: Text(
                             "${users.length}",
@@ -299,12 +294,13 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   const Text(
                     "Manage your team members and their access",
                     style: TextStyle(
-                        fontSize: 13, color: _C.muted, fontWeight: FontWeight.w400),
+                        fontSize: 13,
+                        color: _C.muted,
+                        fontWeight: FontWeight.w400),
                   ),
-
                   const SizedBox(height: 20),
 
-                  // ── error banner ──────────────────────────────────────────
+                  // Error banner
                   if (errorMessage != null)
                     Container(
                       width: double.infinity,
@@ -313,7 +309,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF2F3),
                         border: Border.all(
-                            color: _C.primary.withOpacity(0.25), width: 1.2),
+                            color: _C.primary.withOpacity(0.25),
+                            width: 1.2),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
@@ -332,7 +329,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       ),
                     ),
 
-                  // ── Table Container ───────────────────────────────────────
+                  // Table Container
                   Container(
                     decoration: BoxDecoration(
                       color: _C.surface,
@@ -355,13 +352,13 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       borderRadius: BorderRadius.circular(20),
                       child: Column(
                         children: [
-                          // ── Header Row ────────────────────────────────────
+                          // Header Row
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14, horizontal: 16),
                             color: _C.headerBg,
-                            child: Row(
-                              children: const [
+                            child: const Row(
+                              children: [
                                 Expanded(
                                     flex: 1,
                                     child: _HeaderCell(label: "ID")),
@@ -386,14 +383,13 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               ],
                             ),
                           ),
-
-                          // header / body separator
                           Container(height: 1, color: _C.border),
 
-                          // ── Rows ──────────────────────────────────────────
+                          // Rows
                           if (isLoading)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 40),
                               child: Center(
                                 child: SizedBox(
                                   width: 28,
@@ -423,8 +419,9 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               itemBuilder: (context, index) {
                                 return Column(
                                   children: [
-                                    _buildRow(users[index], index),
-                                    if (index != users.length - 1) _divider(),
+                                    _buildRow(users[index]),
+                                    if (index != users.length - 1)
+                                      _divider(),
                                   ],
                                 );
                               },
@@ -444,7 +441,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  Widget _buildRow(UserModel user, int index) {
+  // ── Data row: passes a plain VoidCallback to ActionButtons ─────────────────
+  Widget _buildRow(UserModel user) {
     return _HoverableRow(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -498,7 +496,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     fontWeight: FontWeight.w400),
               ),
             ),
-            const Expanded(flex: 2, child: ActionButtons()),
+            Expanded(
+              flex: 2,
+              child: ActionButtons(
+                onEditTap: () => _openEditScreen(user),
+              ),
+            ),
           ],
         ),
       ),
@@ -512,20 +515,20 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         child: Row(
           children: [
             Expanded(
-              flex: 1,
-              child: Text("-",
-                  style: const TextStyle(fontSize: 13, color: _C.muted)),
-            ),
+                flex: 1,
+                child: Text("-",
+                    style:
+                        const TextStyle(fontSize: 13, color: _C.muted))),
             Expanded(
-              flex: 2,
-              child: Text("-",
-                  style: const TextStyle(fontSize: 13, color: _C.muted)),
-            ),
+                flex: 2,
+                child: Text("-",
+                    style:
+                        const TextStyle(fontSize: 13, color: _C.muted))),
             Expanded(
-              flex: 3,
-              child: Text("-",
-                  style: const TextStyle(fontSize: 13, color: _C.muted)),
-            ),
+                flex: 3,
+                child: Text("-",
+                    style:
+                        const TextStyle(fontSize: 13, color: _C.muted))),
             const Expanded(flex: 2, child: _RoleChip(role: "Role")),
             const Expanded(
               flex: 2,
@@ -535,11 +538,14 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               ),
             ),
             Expanded(
-              flex: 3,
-              child: Text("-",
-                  style: const TextStyle(fontSize: 12, color: _C.muted)),
+                flex: 3,
+                child: Text("-",
+                    style:
+                        const TextStyle(fontSize: 12, color: _C.muted))),
+            const Expanded(
+              flex: 2,
+              child: ActionButtons(onEditTap: null),
             ),
-            const Expanded(flex: 2, child: ActionButtons()),
           ],
         ),
       ),
@@ -763,29 +769,53 @@ class _StatusChip extends StatelessWidget {
 }
 
 // ─── Action Buttons ───────────────────────────────────────────────────────────
+// Accepts a single nullable VoidCallback for the edit action.
+// Navigation logic lives in _UserManagementScreenState._openEditScreen().
 class ActionButtons extends StatelessWidget {
-  const ActionButtons({super.key});
+  final VoidCallback? onEditTap;
+  const ActionButtons({super.key, required this.onEditTap});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ActionIcon(icon: Icons.visibility_outlined, color: _C.muted),
-        _ActionIcon(icon: Icons.edit_outlined, color: _C.muted),
-        _ActionIcon(icon: Icons.delete_outline_rounded, color: _C.muted,
-            hoverColor: _C.primary),
+        _ActionIcon(
+          icon: Icons.visibility_outlined,
+          color: _C.muted,
+          hoverColor: _C.muted,
+          onTap: () {},
+        ),
+        _ActionIcon(
+          icon: Icons.edit_outlined,
+          color: _C.muted,
+          hoverColor: _C.blueText,
+          onTap: onEditTap,
+        ),
+        _ActionIcon(
+          icon: Icons.delete_outline_rounded,
+          color: _C.muted,
+          hoverColor: _C.primary,
+          onTap: () {},
+        ),
       ],
     );
   }
 }
 
+// ─── Action Icon ──────────────────────────────────────────────────────────────
 class _ActionIcon extends StatefulWidget {
   final IconData icon;
   final Color color;
-  final Color? hoverColor;
-  const _ActionIcon(
-      {required this.icon, required this.color, this.hoverColor});
+  final Color hoverColor;
+  final VoidCallback? onTap;
+
+  const _ActionIcon({
+    required this.icon,
+    required this.color,
+    required this.hoverColor,
+    this.onTap,
+  });
 
   @override
   State<_ActionIcon> createState() => _ActionIconState();
@@ -796,13 +826,12 @@ class _ActionIconState extends State<_ActionIcon> {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor =
-        _hovered ? (widget.hoverColor ?? _C.primary) : widget.color;
+    final Color activeColor = _hovered ? widget.hoverColor : widget.color;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () {},
+        onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
           width: 30,
@@ -810,7 +839,7 @@ class _ActionIconState extends State<_ActionIcon> {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: _hovered
-                ? (widget.hoverColor ?? _C.primary).withOpacity(0.08)
+                ? widget.hoverColor.withOpacity(0.10)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
