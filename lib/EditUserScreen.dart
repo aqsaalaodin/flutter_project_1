@@ -54,6 +54,7 @@ class _EditUserScreenState extends State<EditUserScreen>
   bool _obscurePassword = true;
   List<Map<String, dynamic>> _roles = [];
   String? _errorMessage;
+  String? _debugResponse; // shows raw API response on screen for debugging
   bool _passwordChanged = false;
 
   // ── Animations ───────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ class _EditUserScreenState extends State<EditUserScreen>
 
   // ── Token ────────────────────────────────────────────────────────────────────
   final String token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODA5MTgzMCwiZXhwIjoxNzc4Njk2NjMwfQ.BnqGBNP7hsNesCzOvuim1t1MfvJzrHSZkExIf6M_zYg";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODUwMDEyNywiZXhwIjoxNzc5MTA0OTI3fQ.fYDaxlSNiXIqvXjvoazBJu5TQ-NFhm2gC6G_oc_J5O8";
 
   Map<String, String> get _headers => {
         "Authorization": "Bearer $token",
@@ -153,24 +154,34 @@ class _EditUserScreenState extends State<EditUserScreen>
       _errorMessage = null;
     });
 
-    // Find roleId from name
+    // Find roleId from selected role name
     final roleMatch = _roles.firstWhere(
       (r) => r['name'].toString() == _selectedRole,
       orElse: () => <String, dynamic>{},
     );
     final roleId = roleMatch['id'];
 
+    // Build body — send every possible field name the API might expect
     final body = <String, dynamic>{
       'username': _usernameCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
       'is_active': _isActive,
       'isActive': _isActive,
+      'status': _isActive ? 'active' : 'inactive',
     };
 
-    if (roleId != null) body['roleId'] = roleId;
+    if (roleId != null) {
+      body['roleId'] = roleId;
+      body['role_id'] = roleId;
+    }
+
     if (_passwordChanged && _passwordCtrl.text.isNotEmpty) {
       body['password'] = _passwordCtrl.text;
     }
+
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    print("PUT http://125.209.66.147:5001/api/users/${widget.userId}");
+    print("Body: ${jsonEncode(body)}");
 
     try {
       final response = await http.put(
@@ -179,23 +190,35 @@ class _EditUserScreenState extends State<EditUserScreen>
         body: jsonEncode(body),
       );
 
-      print("PUT /api/users/${widget.userId} → ${response.statusCode}");
-      print("Body sent: ${jsonEncode(body)}");
-      print("Response: ${response.body}");
+      print("STATUS: ${response.statusCode}");
+      print("RESPONSE BODY: ${response.body}");
+      print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+      // Show on screen for debugging
+      setState(() => _debugResponse =
+          "Status: ${response.statusCode}\nBody: ${response.body.isEmpty ? '(empty)' : response.body}");
+
+      // Accept any 2xx as success
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+
+      if (isSuccess) {
         if (!mounted) return;
         _showSuccessSnackbar();
-        await Future.delayed(const Duration(milliseconds: 800));
+        await Future.delayed(const Duration(milliseconds: 600));
         if (!mounted) return;
-        Navigator.pop(context, true); // true = refresh list
+        Navigator.pop(context, true); // true = tells UserManagementScreen to refresh
       } else {
-        String msg = "Failed to update. Status: ${response.statusCode}";
+        // Show the REAL error message from server on screen
+        String msg = "Update failed (HTTP ${response.statusCode})";
         try {
-          final err = jsonDecode(response.body);
-          msg = err['message'] ?? err['error'] ?? msg;
-        } catch (_) {}
-        setState(() => _errorMessage = msg);
+          if (response.body.isNotEmpty) {
+            final err = jsonDecode(response.body);
+            msg = err['message'] ?? err['error'] ?? err['msg'] ?? msg;
+          }
+        } catch (_) {
+          if (response.body.isNotEmpty) msg = response.body;
+        }
+        setState(() => _errorMessage = "❌ $msg");
       }
     } catch (e) {
       setState(() => _errorMessage = "Network error: $e");

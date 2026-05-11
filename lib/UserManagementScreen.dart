@@ -63,9 +63,16 @@ class UserManagementScreen extends StatefulWidget {
 
 class _UserManagementScreenState extends State<UserManagementScreen>
     with SingleTickerProviderStateMixin {
-  List<UserModel> users = [];
+  List<UserModel> allUsers = [];   // full list from API
+  List<UserModel> users = [];      // current page slice
   bool isLoading = true;
   String? errorMessage;
+
+  // ── Pagination ──────────────────────────────────────────────────────────────
+  int _currentPage = 1;
+  int _pageSize = 10;
+  int _totalPages = 1;
+  final List<int> _pageSizeOptions = [5, 10, 20, 50];
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -116,7 +123,15 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         final url = Uri.parse(urlStr);
         final response = await http.get(url, headers: headers);
 
-        if (response.statusCode == 204 || response.body.trim().isEmpty) {
+        print("── STATUS: ${response.statusCode} | $urlStr");
+        print("   BODY: ${response.body}");
+
+        // 304 = server cached, body will be empty — skip to next url
+        // 204 = no content — skip
+        if (response.statusCode == 204 ||
+            response.statusCode == 304 ||
+            response.body.trim().isEmpty) {
+          print("   → Skipping (no usable body)");
           continue;
         }
 
@@ -129,14 +144,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           } else if (decoded is Map) {
             if (decoded.containsKey('data') && decoded['data'] is List) {
               rawList = decoded['data'];
-            } else if (decoded.containsKey('users') &&
-                decoded['users'] is List) {
+            } else if (decoded.containsKey('users') && decoded['users'] is List) {
               rawList = decoded['users'];
-            } else if (decoded.containsKey('content') &&
-                decoded['content'] is List) {
+            } else if (decoded.containsKey('content') && decoded['content'] is List) {
               rawList = decoded['content'];
-            } else if (decoded.containsKey('items') &&
-                decoded['items'] is List) {
+            } else if (decoded.containsKey('items') && decoded['items'] is List) {
               rawList = decoded['items'];
             } else {
               setState(() {
@@ -148,17 +160,24 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             }
           }
 
-          if (rawList.isEmpty) continue;
+          if (rawList.isEmpty) {
+            print("   → List empty, trying next url...");
+            continue;
+          }
 
           setState(() {
-            users = rawList
+            allUsers = rawList
                 .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
                 .toList();
             isLoading = false;
           });
+          _currentPage = 1;
+          _applyPagination();
+          print("   ✅ Loaded ${rawList.length} users");
           return;
         }
       } catch (e) {
+        print("   ❌ Exception: $e");
         continue;
       }
     }
@@ -167,6 +186,26 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       isLoading = false;
       errorMessage = "No data found. Check console for details.";
     });
+  }
+
+  // ── Slice allUsers into current page ──────────────────────────────────────
+  void _applyPagination() {
+    final total = allUsers.length;
+    _totalPages = (total / _pageSize).ceil();
+    if (_totalPages == 0) _totalPages = 1;
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+
+    final start = (_currentPage - 1) * _pageSize;
+    final end = (start + _pageSize).clamp(0, total);
+    setState(() {
+      users = allUsers.sublist(start, end);
+    });
+  }
+
+  void _goToPage(int page) {
+    if (page < 1 || page > _totalPages) return;
+    setState(() => _currentPage = page);
+    _applyPagination();
   }
 
   // ── Open EditUserScreen and refresh list if saved ──────────────────────────
@@ -184,6 +223,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       ),
     );
     if (result == true) {
+      // Small delay so server finishes writing before we fetch fresh data
+      await Future.delayed(const Duration(milliseconds: 400));
       fetchUsers();
     }
   }
@@ -268,7 +309,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      if (!isLoading && users.isNotEmpty)
+                      if (!isLoading && allUsers.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 3),
@@ -280,7 +321,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                 width: 1),
                           ),
                           child: Text(
-                            "${users.length}",
+                            "${allUsers.length}",
                             style: const TextStyle(
                               color: _C.primary,
                               fontSize: 12,
@@ -430,6 +471,24 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       ),
                     ),
                   ),
+
+                  // ── Pagination Footer ─────────────────────────────────
+                  if (!isLoading && allUsers.isNotEmpty)
+                    _PaginationFooter(
+                      currentPage: _currentPage,
+                      totalPages: _totalPages,
+                      totalItems: allUsers.length,
+                      pageSize: _pageSize,
+                      pageSizeOptions: _pageSizeOptions,
+                      onPageChanged: _goToPage,
+                      onPageSizeChanged: (size) {
+                        setState(() {
+                          _pageSize = size;
+                          _currentPage = 1;
+                        });
+                        _applyPagination();
+                      },
+                    ),
 
                   const SizedBox(height: 28),
                 ],
@@ -844,6 +903,266 @@ class _ActionIconState extends State<_ActionIcon> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(widget.icon, size: 16, color: activeColor),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pagination Footer ────────────────────────────────────────────────────────
+class _PaginationFooter extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final int totalItems;
+  final int pageSize;
+  final List<int> pageSizeOptions;
+  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onPageSizeChanged;
+
+  const _PaginationFooter({
+    required this.currentPage,
+    required this.totalPages,
+    required this.totalItems,
+    required this.pageSize,
+    required this.pageSizeOptions,
+    required this.onPageChanged,
+    required this.onPageSizeChanged,
+  });
+
+  // Build the list of page numbers to show (Google-style with ...)
+  List<int?> _buildPageNumbers() {
+    if (totalPages <= 7) {
+      return List.generate(totalPages, (i) => i + 1);
+    }
+    final pages = <int?>[];
+    pages.add(1);
+    if (currentPage > 4) pages.add(null); // left ellipsis
+
+    final start = (currentPage - 2).clamp(2, totalPages - 1);
+    final end   = (currentPage + 2).clamp(2, totalPages - 1);
+    for (int i = start; i <= end; i++) pages.add(i);
+
+    if (currentPage < totalPages - 3) pages.add(null); // right ellipsis
+    if (totalPages > 1) pages.add(totalPages);
+    return pages;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final startItem = ((currentPage - 1) * pageSize) + 1;
+    final endItem   = (currentPage * pageSize).clamp(0, totalItems);
+    final pageNums  = _buildPageNumbers();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: _C.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _C.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Top row: info + page size picker ─────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // "Showing 1–10 of 47 users"
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                      fontSize: 12.5, color: _C.muted, fontWeight: FontWeight.w400),
+                  children: [
+                    const TextSpan(text: "Showing "),
+                    TextSpan(
+                      text: "$startItem–$endItem",
+                      style: const TextStyle(
+                          color: _C.ink, fontWeight: FontWeight.w700),
+                    ),
+                    const TextSpan(text: " of "),
+                    TextSpan(
+                      text: "$totalItems",
+                      style: const TextStyle(
+                          color: _C.ink, fontWeight: FontWeight.w700),
+                    ),
+                    const TextSpan(text: " users"),
+                  ],
+                ),
+              ),
+
+              // Rows per page picker
+              Row(
+                children: [
+                  const Text(
+                    "Rows:",
+                    style: TextStyle(
+                        fontSize: 12, color: _C.muted, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: _C.bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.border, width: 1.1),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: pageSize,
+                        isDense: true,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 16, color: _C.muted),
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            color: _C.ink,
+                            fontWeight: FontWeight.w600),
+                        borderRadius: BorderRadius.circular(10),
+                        items: pageSizeOptions
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text("$s"),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) onPageSizeChanged(v);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          Container(height: 1, color: _C.border.withOpacity(0.6)),
+          const SizedBox(height: 12),
+
+          // ── Bottom row: prev + page numbers + next ────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ← Prev
+              _PageBtn(
+                label: "←",
+                isDisabled: currentPage == 1,
+                isActive: false,
+                onTap: () => onPageChanged(currentPage - 1),
+              ),
+
+              const SizedBox(width: 4),
+
+              // Page number buttons
+              ...pageNums.map((p) {
+                if (p == null) {
+                  // Ellipsis
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text("…",
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: _C.muted,
+                            fontWeight: FontWeight.w600)),
+                  );
+                }
+                return _PageBtn(
+                  label: "$p",
+                  isActive: p == currentPage,
+                  isDisabled: false,
+                  onTap: () => onPageChanged(p),
+                );
+              }),
+
+              const SizedBox(width: 4),
+
+              // → Next
+              _PageBtn(
+                label: "→",
+                isDisabled: currentPage == totalPages,
+                isActive: false,
+                onTap: () => onPageChanged(currentPage + 1),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Individual Page Button ───────────────────────────────────────────────────
+class _PageBtn extends StatefulWidget {
+  final String label;
+  final bool isActive;
+  final bool isDisabled;
+  final VoidCallback onTap;
+
+  const _PageBtn({
+    required this.label,
+    required this.isActive,
+    required this.isDisabled,
+    required this.onTap,
+  });
+
+  @override
+  State<_PageBtn> createState() => _PageBtnState();
+}
+
+class _PageBtnState extends State<_PageBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bgColor = Colors.transparent;
+    Color textColor = _C.muted;
+    Color borderColor = Colors.transparent;
+
+    if (widget.isActive) {
+      bgColor     = _C.primary;
+      textColor   = Colors.white;
+      borderColor = _C.primary;
+    } else if (_hovered && !widget.isDisabled) {
+      bgColor     = _C.chip;
+      textColor   = _C.primary;
+      borderColor = _C.primary.withOpacity(0.3);
+    } else if (widget.isDisabled) {
+      textColor = _C.border;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.isDisabled ? null : widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 34,
+          height: 34,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 1.2),
+          ),
+          child: Center(
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: widget.label.length > 2 ? 14 : 13,
+                fontWeight:
+                    widget.isActive ? FontWeight.w800 : FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ),
         ),
       ),
     );
