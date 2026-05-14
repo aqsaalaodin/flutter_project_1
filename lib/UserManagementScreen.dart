@@ -79,7 +79,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   late Animation<Offset> _slideAnim;
 
   final String token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODA5MTgzMCwiZXhwIjoxNzc4Njk2NjMwfQ.BnqGBNP7hsNesCzOvuim1t1MfvJzrHSZkExIf6M_zYg";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODc0OTc1NSwiZXhwIjoxNzc5MzU0NTU1fQ.Sb5xCnHnUoIoN2c3JvBU1ldMDe2_7wJBsPGeGyZe-v0";
 
   @override
   void initState() {
@@ -165,15 +165,22 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             continue;
           }
 
+          // Parse list first, then set state + paginate in one shot
+          final parsed = rawList
+              .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+
           setState(() {
-            allUsers = rawList
-                .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
-                .toList();
+            allUsers = parsed;
+            _currentPage = 1;
+            final total = allUsers.length;
+            _totalPages = (total / _pageSize).ceil();
+            if (_totalPages == 0) _totalPages = 1;
+            final end = _pageSize.clamp(0, total);
+            users = allUsers.sublist(0, end);
             isLoading = false;
           });
-          _currentPage = 1;
-          _applyPagination();
-          print("   ✅ Loaded ${rawList.length} users");
+          print("   ✅ Loaded ${parsed.length} users");
           return;
         }
       } catch (e) {
@@ -188,16 +195,15 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     });
   }
 
-  // ── Slice allUsers into current page ──────────────────────────────────────
+  // ── Slice allUsers into current page — everything in one setState ──────────
   void _applyPagination() {
-    final total = allUsers.length;
-    _totalPages = (total / _pageSize).ceil();
-    if (_totalPages == 0) _totalPages = 1;
-    if (_currentPage > _totalPages) _currentPage = _totalPages;
-
-    final start = (_currentPage - 1) * _pageSize;
-    final end = (start + _pageSize).clamp(0, total);
     setState(() {
+      final total = allUsers.length;
+      _totalPages = (total / _pageSize).ceil();
+      if (_totalPages == 0) _totalPages = 1;
+      if (_currentPage > _totalPages) _currentPage = _totalPages;
+      final start = (_currentPage - 1) * _pageSize;
+      final end = (start + _pageSize).clamp(0, total);
       users = allUsers.sublist(start, end);
     });
   }
@@ -206,6 +212,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     if (page < 1 || page > _totalPages) return;
     setState(() => _currentPage = page);
     _applyPagination();
+  }
+
+  // ── Open View User Dialog ──────────────────────────────────────────────────
+  void _openViewDialog(UserModel user) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.4),
+      builder: (_) => _ViewUserDialog(user: user),
+    );
   }
 
   // ── Open EditUserScreen and refresh list if saved ──────────────────────────
@@ -558,6 +574,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             Expanded(
               flex: 2,
               child: ActionButtons(
+                onViewTap: () => _openViewDialog(user),
                 onEditTap: () => _openEditScreen(user),
               ),
             ),
@@ -603,7 +620,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         const TextStyle(fontSize: 12, color: _C.muted))),
             const Expanded(
               flex: 2,
-              child: ActionButtons(onEditTap: null),
+              child: ActionButtons(onEditTap: null, onViewTap: null),
             ),
           ],
         ),
@@ -832,7 +849,8 @@ class _StatusChip extends StatelessWidget {
 // Navigation logic lives in _UserManagementScreenState._openEditScreen().
 class ActionButtons extends StatelessWidget {
   final VoidCallback? onEditTap;
-  const ActionButtons({super.key, required this.onEditTap});
+  final VoidCallback? onViewTap;
+  const ActionButtons({super.key, required this.onEditTap, this.onViewTap});
 
   @override
   Widget build(BuildContext context) {
@@ -842,8 +860,8 @@ class ActionButtons extends StatelessWidget {
         _ActionIcon(
           icon: Icons.visibility_outlined,
           color: _C.muted,
-          hoverColor: _C.muted,
-          onTap: () {},
+          hoverColor: _C.activeGreen,
+          onTap: onViewTap,
         ),
         _ActionIcon(
           icon: Icons.edit_outlined,
@@ -1165,6 +1183,369 @@ class _PageBtnState extends State<_PageBtn> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── View User Dialog ─────────────────────────────────────────────────────────
+class _ViewUserDialog extends StatelessWidget {
+  final UserModel user;
+  const _ViewUserDialog({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      child: _DialogContent(user: user),
+    );
+  }
+}
+
+class _DialogContent extends StatefulWidget {
+  final UserModel user;
+  const _DialogContent({required this.user});
+
+  @override
+  State<_DialogContent> createState() => _DialogContentState();
+}
+
+class _DialogContentState extends State<_DialogContent>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 280));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.92, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    _ctrl.reverse().then((_) => Navigator.pop(context));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _C.surface,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.18),
+                blurRadius: 40,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Header ───────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+                decoration: BoxDecoration(
+                  color: _C.surface,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(
+                      bottom: BorderSide(color: _C.border, width: 1)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: _C.chip,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: _C.primary.withOpacity(0.18), width: 1),
+                      ),
+                      child: const Icon(Icons.visibility_outlined,
+                          size: 18, color: _C.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "View User",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: _C.ink,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const Spacer(),
+                    // X close button
+                    GestureDetector(
+                      onTap: _close,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: _C.bg,
+                          borderRadius: BorderRadius.circular(10),
+                          border:
+                              Border.all(color: _C.border, width: 1.1),
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            size: 18, color: _C.muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Body ─────────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar + name row
+                    Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: _C.chip,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: _C.primary.withOpacity(0.22),
+                                width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              widget.user.username.isNotEmpty
+                                  ? widget.user.username[0].toUpperCase()
+                                  : "U",
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: _C.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.user.username,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: _C.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "ID #${widget.user.id}",
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _C.muted,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        _StatusChip(isActive: widget.user.isActive),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    _dialogDivider(),
+                    const SizedBox(height: 20),
+
+                    // Fields
+                    _DialogField(
+                      label: "Username",
+                      value: widget.user.username,
+                      icon: Icons.person_outline_rounded,
+                    ),
+                    const SizedBox(height: 14),
+                    _DialogField(
+                      label: "Email",
+                      value: widget.user.email,
+                      icon: Icons.email_outlined,
+                    ),
+                    const SizedBox(height: 14),
+                    _DialogField(
+                      label: "Role",
+                      value: widget.user.role,
+                      icon: Icons.shield_outlined,
+                      isRole: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _DialogField(
+                      label: "Regions",
+                      value: "No regions selected",
+                      icon: Icons.location_on_outlined,
+                      isEmpty: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _DialogField(
+                      label: "Created At",
+                      value: widget.user.createdAt,
+                      icon: Icons.calendar_today_outlined,
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Footer ───────────────────────────────────────────────────
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: _C.bg,
+                  borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(24)),
+                  border: Border(
+                      top: BorderSide(color: _C.border, width: 1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: _close,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 28, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: _C.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: _C.border, width: 1.3),
+                        ),
+                        child: const Text(
+                          "CLOSE",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: _C.blueText,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogDivider() =>
+      Container(height: 1, color: _C.border.withOpacity(0.7));
+}
+
+// ─── Dialog Field Row ─────────────────────────────────────────────────────────
+class _DialogField extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isRole;
+  final bool isEmpty;
+
+  const _DialogField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.isRole  = false,
+    this.isEmpty = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: _C.muted,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Value box
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            color: _C.bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _C.border, width: 1.1),
+          ),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: isEmpty ? _C.border : _C.muted),
+              const SizedBox(width: 10),
+              if (isRole)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _C.blueChip,
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: _C.blueBorder, width: 1),
+                  ),
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: _C.blueText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: isEmpty ? _C.border : _C.ink,
+                    fontWeight: isEmpty
+                        ? FontWeight.w400
+                        : FontWeight.w500,
+                    fontStyle: isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
