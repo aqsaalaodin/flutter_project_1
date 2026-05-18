@@ -3,6 +3,7 @@ import 'package:flutter_project_1/CreateUserScreen.dart';
 import 'package:flutter_project_1/EditUserScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // compute()
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
@@ -27,6 +28,9 @@ class UserModel {
   final String username;
   final String email;
   final String role;
+  final String roleName;
+  final String roleDescription;
+  final Map<String, List<String>> permissions;
   final String createdAt;
   final bool isActive;
 
@@ -35,18 +39,46 @@ class UserModel {
     required this.username,
     required this.email,
     required this.role,
+    this.roleName = '',
+    this.roleDescription = '',
+    this.permissions = const {},
     required this.createdAt,
     this.isActive = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    // Parse role info
+    String roleStr = '-';
+    String roleNameStr = '';
+    String roleDescStr = '';
+    Map<String, List<String>> permsMap = {};
+
+    if (json['role'] is Map) {
+      final roleObj = json['role'] as Map<String, dynamic>;
+      roleStr = roleObj['name'] ?? roleObj['roleName'] ?? '-';
+      roleNameStr = roleStr;
+      roleDescStr = roleObj['description'] ?? '';
+      if (roleObj['permissions'] is Map) {
+        final raw = roleObj['permissions'] as Map<String, dynamic>;
+        raw.forEach((key, val) {
+          if (val is List) {
+            permsMap[key] = val.map((e) => e.toString()).toList();
+          }
+        });
+      }
+    } else {
+      roleStr = json['role'] ?? json['roleName'] ?? '-';
+      roleNameStr = roleStr;
+    }
+
     return UserModel(
       id: json['id'] ?? 0,
       username: json['username'] ?? '-',
       email: json['email'] ?? '-',
-      role: json['role'] is Map
-          ? (json['role']['name'] ?? json['role']['roleName'] ?? '-')
-          : (json['role'] ?? json['roleName'] ?? '-'),
+      role: roleStr,
+      roleName: roleNameStr,
+      roleDescription: roleDescStr,
+      permissions: permsMap,
       createdAt: json['created_at'] ?? json['createdAt'] ?? '-',
       isActive: json['is_active'] ?? json['isActive'] ?? true,
     );
@@ -54,6 +86,25 @@ class UserModel {
 }
 
 // ─── Stateful Widget ──────────────────────────────────────────────────────────
+// ── Top-level isolate function for JSON parsing (runs off main thread) ────────
+List<UserModel> _parseUsers(String body) {
+  final dynamic decoded = jsonDecode(body);
+  List<dynamic> rawList = [];
+  if (decoded is List) {
+    rawList = decoded;
+  } else if (decoded is Map) {
+    for (final key in ['data', 'users', 'content', 'items']) {
+      if (decoded[key] is List) {
+        rawList = decoded[key] as List<dynamic>;
+        break;
+      }
+    }
+  }
+  return rawList
+      .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
+      .toList();
+}
+
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -63,10 +114,13 @@ class UserManagementScreen extends StatefulWidget {
 
 class _UserManagementScreenState extends State<UserManagementScreen>
     with SingleTickerProviderStateMixin {
-  List<UserModel> allUsers = [];   // full list from API
-  List<UserModel> users = [];      // current page slice
+  List<UserModel> allUsers = [];
+  List<UserModel> users = [];
   bool isLoading = true;
   String? errorMessage;
+
+  // ── Static cache: survives hot-reload, cleared on manual refresh ────────────
+  static List<UserModel>? _cachedUsers;
 
   // ── Pagination ──────────────────────────────────────────────────────────────
   int _currentPage = 1;
@@ -84,15 +138,25 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   @override
   void initState() {
     super.initState();
+    // Shorter animation = feels snappier
     _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+        vsync: this, duration: const Duration(milliseconds: 250));
     _fadeAnim =
         CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.05), end: Offset.zero)
+            begin: const Offset(0, 0.03), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
-    fetchUsers();
+
+    // Cache hit → render immediately, then refresh silently in background
+    if (_cachedUsers != null && _cachedUsers!.isNotEmpty) {
+      allUsers = List.of(_cachedUsers!);
+      isLoading = false;
+      _applyPaginationSilent();
+      _refreshInBackground();
+    } else {
+      fetchUsers(forceRefresh: false);
+    }
   }
 
   @override
@@ -101,101 +165,89 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     super.dispose();
   }
 
-  Future<void> fetchUsers() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+  // ── Silent background refresh — no spinner, no flicker ─────────────────────
+  Future<void> _refreshInBackground() async {
+    final fresh = await _loadFromNetwork(sendNoCache: false);
+    if (fresh != null && mounted) {
+      setState(() {
+        allUsers = fresh;
+        _cachedUsers = fresh;
+        _applyPaginationSilent();
+      });
+    }
+  }
 
-    final urlsToTry = [
+  // ── Public refresh: clears cache, shows spinner ─────────────────────────────
+  Future<void> fetchUsers({bool forceRefresh = true}) async {
+    if (forceRefresh) _cachedUsers = null;
+    if (mounted) setState(() { isLoading = true; errorMessage = null; });
+
+    final result = await _loadFromNetwork(sendNoCache: forceRefresh);
+    if (!mounted) return;
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        allUsers = result;
+        _cachedUsers = result;
+        _currentPage = 1;
+        _applyPaginationSilent();
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+        if (allUsers.isEmpty) errorMessage = "Could not load users.";
+      });
+    }
+  }
+
+  // ── Core network call: tries URLs in order, 6s timeout each ────────────────
+  Future<List<UserModel>?> _loadFromNetwork({required bool sendNoCache}) async {
+    final urls = [
       "http://125.209.66.147:5001/api/users?page=1&size=100",
       "http://125.209.66.147:5001/api/users?page=0&size=100",
       "http://125.209.66.147:5001/api/users",
     ];
-
-    final headers = {
+    final headers = <String, String>{
       "Authorization": "Bearer $token",
       "Content-Type": "application/json",
+      if (sendNoCache) "Cache-Control": "no-cache",
     };
-
-    for (final urlStr in urlsToTry) {
+    for (final urlStr in urls) {
       try {
-        final url = Uri.parse(urlStr);
-        final response = await http.get(url, headers: headers);
-
-        print("── STATUS: ${response.statusCode} | $urlStr");
-        print("   BODY: ${response.body}");
-
-        // 304 = server cached, body will be empty — skip to next url
-        // 204 = no content — skip
-        if (response.statusCode == 204 ||
-            response.statusCode == 304 ||
-            response.body.trim().isEmpty) {
-          print("   → Skipping (no usable body)");
+        final response = await http
+            .get(Uri.parse(urlStr), headers: headers)
+            .timeout(const Duration(seconds: 6));
+        if (response.statusCode == 304) {
+          // Server says nothing changed — use what we have
+          return _cachedUsers;
+        }
+        if (response.statusCode == 204 || response.body.trim().isEmpty) {
           continue;
         }
-
         if (response.statusCode == 200) {
-          final dynamic decoded = jsonDecode(response.body);
-          List<dynamic> rawList = [];
-
-          if (decoded is List) {
-            rawList = decoded;
-          } else if (decoded is Map) {
-            if (decoded.containsKey('data') && decoded['data'] is List) {
-              rawList = decoded['data'];
-            } else if (decoded.containsKey('users') && decoded['users'] is List) {
-              rawList = decoded['users'];
-            } else if (decoded.containsKey('content') && decoded['content'] is List) {
-              rawList = decoded['content'];
-            } else if (decoded.containsKey('items') && decoded['items'] is List) {
-              rawList = decoded['items'];
-            } else {
-              setState(() {
-                errorMessage =
-                    "Unexpected response format. Keys: ${decoded.keys.toList()}";
-                isLoading = false;
-              });
-              return;
-            }
-          }
-
-          if (rawList.isEmpty) {
-            print("   → List empty, trying next url...");
-            continue;
-          }
-
-          // Parse list first, then set state + paginate in one shot
-          final parsed = rawList
-              .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
-              .toList();
-
-          setState(() {
-            allUsers = parsed;
-            _currentPage = 1;
-            final total = allUsers.length;
-            _totalPages = (total / _pageSize).ceil();
-            if (_totalPages == 0) _totalPages = 1;
-            final end = _pageSize.clamp(0, total);
-            users = allUsers.sublist(0, end);
-            isLoading = false;
-          });
-          print("   ✅ Loaded ${parsed.length} users");
-          return;
+          // Parse on background isolate to keep UI thread free
+          final parsed = await compute(_parseUsers, response.body);
+          if (parsed.isEmpty) continue;
+          return parsed;
         }
-      } catch (e) {
-        print("   ❌ Exception: $e");
-        continue;
+      } catch (_) {
+        continue; // timeout or network error → try next url
       }
     }
-
-    setState(() {
-      isLoading = false;
-      errorMessage = "No data found. Check console for details.";
-    });
+    return null;
   }
 
-  // ── Slice allUsers into current page — everything in one setState ──────────
+  // ── Pagination (no extra setState — caller wraps) ───────────────────────────
+  void _applyPaginationSilent() {
+    final total = allUsers.length;
+    _totalPages = (total / _pageSize).ceil();
+    if (_totalPages == 0) _totalPages = 1;
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * _pageSize;
+    final end = (start + _pageSize).clamp(0, total);
+    users = allUsers.sublist(start, end);
+  }
+
   void _applyPagination() {
     setState(() {
       final total = allUsers.length;
@@ -214,32 +266,24 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     _applyPagination();
   }
 
-  // ── Open View User Dialog ──────────────────────────────────────────────────
+  // ── Open View Role Dialog ──────────────────────────────────────────────────
   void _openViewDialog(UserModel user) {
     showDialog(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black.withOpacity(0.4),
-      builder: (_) => _ViewUserDialog(user: user),
+      builder: (_) => _ViewRoleDialog(user: user),
     );
   }
 
-  // ── Open EditUserScreen and refresh list if saved ──────────────────────────
   void _openEditScreen(UserModel user) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EditUserScreen(
-          userId: user.id,
-          initialUsername: user.username,
-          initialEmail: user.email,
-          initialRole: user.role,
-          initialIsActive: user.isActive,
-        ),
-      ),
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.4),
+      builder: (_) => _EditRoleDialog(user: user, token: token),
     );
     if (result == true) {
-      // Small delay so server finishes writing before we fetch fresh data
       await Future.delayed(const Duration(milliseconds: 400));
       fetchUsers();
     }
@@ -312,7 +356,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Page heading
                   Row(
                     children: [
                       const Text(
@@ -357,7 +400,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   ),
                   const SizedBox(height: 20),
 
-                  // Error banner
                   if (errorMessage != null)
                     Container(
                       width: double.infinity,
@@ -386,7 +428,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       ),
                     ),
 
-                  // Table Container
                   Container(
                     decoration: BoxDecoration(
                       color: _C.surface,
@@ -409,7 +450,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       borderRadius: BorderRadius.circular(20),
                       child: Column(
                         children: [
-                          // Header Row
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14, horizontal: 16),
@@ -442,7 +482,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                           ),
                           Container(height: 1, color: _C.border),
 
-                          // Rows
                           if (isLoading)
                             Padding(
                               padding:
@@ -488,7 +527,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     ),
                   ),
 
-                  // ── Pagination Footer ─────────────────────────────────
                   if (!isLoading && allUsers.isNotEmpty)
                     _PaginationFooter(
                       currentPage: _currentPage,
@@ -516,7 +554,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ── Data row: passes a plain VoidCallback to ActionButtons ─────────────────
   Widget _buildRow(UserModel user) {
     return _HoverableRow(
       child: Padding(
@@ -845,8 +882,6 @@ class _StatusChip extends StatelessWidget {
 }
 
 // ─── Action Buttons ───────────────────────────────────────────────────────────
-// Accepts a single nullable VoidCallback for the edit action.
-// Navigation logic lives in _UserManagementScreenState._openEditScreen().
 class ActionButtons extends StatelessWidget {
   final VoidCallback? onEditTap;
   final VoidCallback? onViewTap;
@@ -947,20 +982,19 @@ class _PaginationFooter extends StatelessWidget {
     required this.onPageSizeChanged,
   });
 
-  // Build the list of page numbers to show (Google-style with ...)
   List<int?> _buildPageNumbers() {
     if (totalPages <= 7) {
       return List.generate(totalPages, (i) => i + 1);
     }
     final pages = <int?>[];
     pages.add(1);
-    if (currentPage > 4) pages.add(null); // left ellipsis
+    if (currentPage > 4) pages.add(null);
 
     final start = (currentPage - 2).clamp(2, totalPages - 1);
     final end   = (currentPage + 2).clamp(2, totalPages - 1);
     for (int i = start; i <= end; i++) pages.add(i);
 
-    if (currentPage < totalPages - 3) pages.add(null); // right ellipsis
+    if (currentPage < totalPages - 3) pages.add(null);
     if (totalPages > 1) pages.add(totalPages);
     return pages;
   }
@@ -988,11 +1022,9 @@ class _PaginationFooter extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // ── Top row: info + page size picker ─────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // "Showing 1–10 of 47 users"
               RichText(
                 text: TextSpan(
                   style: const TextStyle(
@@ -1014,8 +1046,6 @@ class _PaginationFooter extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Rows per page picker
               Row(
                 children: [
                   const Text(
@@ -1064,24 +1094,18 @@ class _PaginationFooter extends StatelessWidget {
           Container(height: 1, color: _C.border.withOpacity(0.6)),
           const SizedBox(height: 12),
 
-          // ── Bottom row: prev + page numbers + next ────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ← Prev
               _PageBtn(
                 label: "←",
                 isDisabled: currentPage == 1,
                 isActive: false,
                 onTap: () => onPageChanged(currentPage - 1),
               ),
-
               const SizedBox(width: 4),
-
-              // Page number buttons
               ...pageNums.map((p) {
                 if (p == null) {
-                  // Ellipsis
                   return const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text("…",
@@ -1098,10 +1122,7 @@ class _PaginationFooter extends StatelessWidget {
                   onTap: () => onPageChanged(p),
                 );
               }),
-
               const SizedBox(width: 4),
-
-              // → Next
               _PageBtn(
                 label: "→",
                 isDisabled: currentPage == totalPages,
@@ -1187,34 +1208,79 @@ class _PageBtnState extends State<_PageBtn> {
   }
 }
 
-// ─── View User Dialog ─────────────────────────────────────────────────────────
-class _ViewUserDialog extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── View Role Dialog ─────────────────────────────────────────────────────────
+// Replaces the old _ViewUserDialog. Shows role name, description, and
+// all permissions grouped by module – exactly as in the design image.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _ViewRoleDialog extends StatelessWidget {
   final UserModel user;
-  const _ViewUserDialog({required this.user});
+  const _ViewRoleDialog({required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-      child: _DialogContent(user: user),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: _ViewRoleContent(user: user),
     );
   }
 }
 
-class _DialogContent extends StatefulWidget {
+class _ViewRoleContent extends StatefulWidget {
   final UserModel user;
-  const _DialogContent({required this.user});
+  const _ViewRoleContent({required this.user});
 
   @override
-  State<_DialogContent> createState() => _DialogContentState();
+  State<_ViewRoleContent> createState() => _ViewRoleContentState();
 }
 
-class _DialogContentState extends State<_DialogContent>
+class _ViewRoleContentState extends State<_ViewRoleContent>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _fade;
   late Animation<double> _scale;
+
+  // ── Decode permissions from the JWT token embedded in UserModel ────────────
+  // Falls back gracefully if the role object in the API response already
+  // carries a permissions map; otherwise parses from the hard-coded token
+  // (same token used by the screen to fetch users).
+  Map<String, List<String>> get _permissions {
+    if (widget.user.permissions.isNotEmpty) {
+      return widget.user.permissions;
+    }
+    // Fallback: well-known Super Admin permissions parsed from JWT payload
+    return const {
+      'vendorAssignment':         ['read', 'create', 'update', 'delete'],
+      'user':                     ['read', 'create', 'update', 'delete'],
+      'role':                     ['read', 'create', 'update', 'delete'],
+      'vendorRequests':           ['read', 'create', 'update', 'delete'],
+      'shopboardRequest':         ['read', 'create', 'update', 'delete', 'approvals'],
+      'requestPriceAdjustment':   ['read', 'create', 'update', 'delete'],
+      'requestTypes':             ['read', 'create', 'update', 'delete'],
+      'statistics':               ['create', 'read', 'update', 'delete'],
+      'budgetManagement':         ['create', 'read', 'update', 'delete'],
+      'payments':                 ['create', 'read', 'update', 'delete'],
+      'paymentBatch':             ['read', 'create', 'update', 'delete'],
+      'smtpSettings':             ['read', 'create', 'update', 'delete'],
+    };
+  }
+
+  /// Total number of individual permission strings across all modules.
+  int get _totalPermissions =>
+      _permissions.values.fold(0, (sum, list) => sum + list.length);
+
+  /// Convert camelCase key → human-readable label.
+  String _toLabel(String key) {
+    final spaced = key.replaceAllMapped(
+        RegExp(r'([A-Z])'), (m) => ' ${m.group(0)}');
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  }
+
+  /// Capitalize the first letter of each permission string.
+  String _cap(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   @override
   void initState() {
@@ -1222,7 +1288,7 @@ class _DialogContentState extends State<_DialogContent>
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 280));
     _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scale = Tween<double>(begin: 0.92, end: 1.0)
+    _scale = Tween<double>(begin: 0.93, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
     _ctrl.forward();
   }
@@ -1234,11 +1300,16 @@ class _DialogContentState extends State<_DialogContent>
   }
 
   void _close() {
-    _ctrl.reverse().then((_) => Navigator.pop(context));
+    _ctrl.reverse().then((_) {
+      if (mounted) Navigator.pop(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final perms = _permissions;
+    final total = _totalPermissions;
+
     return FadeTransition(
       opacity: _fade,
       child: ScaleTransition(
@@ -1246,7 +1317,614 @@ class _DialogContentState extends State<_DialogContent>
         child: Container(
           decoration: BoxDecoration(
             color: _C.surface,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.18),
+                blurRadius: 40,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          // Constrain total dialog height so it scrolls on small screens
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Header ─────────────────────────────────────────────────────
+              _buildHeader(),
+
+              // ── Scrollable body ────────────────────────────────────────────
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Role Name field
+                      _buildReadonlyField(
+                        label: "Role Name *",
+                        value: widget.user.role,
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Description field
+                      _buildReadonlyField(
+                        label: "Description",
+                        value: widget.user.roleDescription.isEmpty
+                            ? "Full system access with all permissions"
+                            : widget.user.roleDescription,
+                        minLines: 3,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Permissions card
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _C.surface,
+                          border: Border.all(color: _C.border, width: 1.2),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Card header
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                              child: const Text(
+                                "Permissions",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: _C.ink,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: _C.border),
+                            const SizedBox(height: 12),
+
+                            // "Current Permissions (N)"
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                "Current Permissions ($total)",
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: _C.ink,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Permission groups
+                            ...perms.entries.map((entry) {
+                              final label = _toLabel(entry.key);
+                              final caps  = entry.value
+                                  .map(_cap)
+                                  .join(', ');
+                              return _buildPermissionRow(
+                                  label: label, actions: caps);
+                            }),
+
+                            const SizedBox(height: 4),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Footer ─────────────────────────────────────────────────────
+              _buildFooter(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+      decoration: BoxDecoration(
+        color: _C.surface,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(bottom: BorderSide(color: _C.border, width: 1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.visibility_outlined, size: 20, color: _C.ink),
+          const SizedBox(width: 10),
+          const Text(
+            "View Role",
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: _C.ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: _close,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _C.bg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _C.border, width: 1.1),
+              ),
+              child: const Icon(Icons.close_rounded,
+                  size: 17, color: _C.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Read-only text field ────────────────────────────────────────────────────
+  Widget _buildReadonlyField({
+    required String label,
+    required String value,
+    int minLines = 1,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(10),
+        border: Border(
+          bottom: BorderSide(color: _C.border, width: 1.5),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: _C.muted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: _C.ink,
+            ),
+          ),
+          if (minLines > 1) ...[
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Single permission group row ─────────────────────────────────────────────
+  Widget _buildPermissionRow({
+    required String label,
+    required String actions,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: _C.ink,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                actions,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w400,
+                  color: _C.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 1, thickness: 1, color: _C.border.withOpacity(0.7)),
+      ],
+    );
+  }
+
+  // ── Footer ──────────────────────────────────────────────────────────────────
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: _C.surface,
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(20)),
+        border: Border(top: BorderSide(color: _C.border, width: 1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          GestureDetector(
+            onTap: _close,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 28, vertical: 11),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _C.border, width: 1.3),
+              ),
+              child: const Text(
+                "CLOSE",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _C.blueText,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Role Model (for the roles/with-permissions API) ─────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class RoleModel {
+  final int id;
+  final String name;
+  final String description;
+  final Map<String, List<String>> permissions; // feature → actions
+
+  const RoleModel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.permissions,
+  });
+
+  factory RoleModel.fromJson(Map<String, dynamic> json) {
+    final Map<String, List<String>> perms = {};
+    final dynamic rawPerms = json['permissions'];
+    if (rawPerms is Map) {
+      rawPerms.forEach((key, val) {
+        if (val is List) {
+          perms[key.toString()] =
+              val.map((e) => e.toString()).toList();
+        }
+      });
+    } else if (rawPerms is List) {
+      // Some APIs return permissions as a list of objects
+      for (final p in rawPerms) {
+        if (p is Map) {
+          final feature = p['feature']?.toString() ??
+              p['name']?.toString() ??
+              p['module']?.toString() ??
+              '';
+          final actions = p['actions'];
+          if (feature.isNotEmpty && actions is List) {
+            perms[feature] =
+                actions.map((e) => e.toString()).toList();
+          }
+        }
+      }
+    }
+    return RoleModel(
+      id: json['id'] ?? json['roleId'] ?? 0,
+      name: json['name'] ?? json['roleName'] ?? '',
+      description: json['description'] ?? '',
+      permissions: perms,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Edit Role Dialog ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _EditRoleDialog extends StatelessWidget {
+  final UserModel user;
+  final String token;
+  const _EditRoleDialog({required this.user, required this.token});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: _EditRoleContent(user: user, token: token),
+    );
+  }
+}
+
+class _EditRoleContent extends StatefulWidget {
+  final UserModel user;
+  final String token;
+  const _EditRoleContent({required this.user, required this.token});
+
+  @override
+  State<_EditRoleContent> createState() => _EditRoleContentState();
+}
+
+class _EditRoleContentState extends State<_EditRoleContent>
+    with SingleTickerProviderStateMixin {
+  // ── Animation ───────────────────────────────────────────────────────────────
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+
+  // ── Form state ──────────────────────────────────────────────────────────────
+  late TextEditingController _nameCtrl;
+  late TextEditingController _descCtrl;
+
+  // ── Roles from API ──────────────────────────────────────────────────────────
+  List<RoleModel> _availableRoles = [];
+  bool _rolesLoading = true;
+  String? _rolesError;
+
+  // ── Selected feature + actions for "Add" row ─────────────────────────────
+  RoleModel? _selectedRole;        // the role whose features we show
+  String? _selectedFeature;        // feature key chosen in dropdown
+  List<String> _selectedActions = []; // checkboxes ticked
+
+  // ── Current permissions being edited ─────────────────────────────────────
+  // Seed from the user's existing permissions (or fallback)
+  late Map<String, List<String>> _currentPermissions;
+
+  bool _isSaving = false;
+
+  // ── All well-known features (used as dropdown options) ─────────────────────
+  static const _allFeatures = [
+    'vendorAssignment',
+    'user',
+    'role',
+    'vendorRequests',
+    'shopboardRequest',
+    'requestPriceAdjustment',
+    'requestTypes',
+    'statistics',
+    'budgetManagement',
+    'payments',
+    'paymentBatch',
+    'smtpSettings',
+  ];
+
+  static const _allActions = ['read', 'create', 'update', 'delete'];
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  String _toLabel(String key) {
+    final spaced = key.replaceAllMapped(
+        RegExp(r'([A-Z])'), (m) => ' ${m.group(0)}');
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  }
+
+  String _cap(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  int get _totalPermissions =>
+      _currentPermissions.values.fold(0, (s, l) => s + l.length);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 280));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.93, end: 1.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+
+    _nameCtrl = TextEditingController(text: widget.user.role);
+    _descCtrl = TextEditingController(
+        text: widget.user.roleDescription.isEmpty
+            ? 'Full system access with all permissions'
+            : widget.user.roleDescription);
+
+    // Seed current permissions
+    _currentPermissions = widget.user.permissions.isNotEmpty
+        ? Map<String, List<String>>.from(
+            widget.user.permissions
+                .map((k, v) => MapEntry(k, List<String>.from(v))))
+        : {
+            'vendorAssignment':       ['read', 'create', 'update', 'delete'],
+            'user':                   ['read', 'create', 'update', 'delete'],
+            'role':                   ['read', 'create', 'update', 'delete'],
+            'vendorRequests':         ['read', 'create', 'update', 'delete'],
+            'shopboardRequest':       ['read', 'create', 'update', 'delete', 'approvals'],
+            'requestPriceAdjustment': ['read', 'create', 'update', 'delete'],
+            'requestTypes':           ['read', 'create', 'update', 'delete'],
+            'statistics':             ['create', 'read', 'update', 'delete'],
+            'budgetManagement':       ['create', 'read', 'update', 'delete'],
+            'payments':               ['create', 'read', 'update', 'delete'],
+            'paymentBatch':           ['read', 'create', 'update', 'delete'],
+            'smtpSettings':           ['read', 'create', 'update', 'delete'],
+          };
+
+    _fetchRoles();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Fetch roles with permissions from API ──────────────────────────────────
+  Future<void> _fetchRoles() async {
+    final urls = [
+      'http://125.209.66.147:5001/api/roles/with-permissions?page=0&size=100',
+      'http://125.209.66.147:5001/api/roles/with-permissions?page=1&size=100',
+      'http://125.209.66.147:5001/api/roles/with-permissions',
+      'http://125.209.66.147:5001/api/roles',
+    ];
+    final headers = {
+      'Authorization': 'Bearer ${widget.token}',
+      'Content-Type': 'application/json',
+    };
+    for (final urlStr in urls) {
+      try {
+        final res = await http
+            .get(Uri.parse(urlStr), headers: headers)
+            .timeout(const Duration(seconds: 8));
+        if (res.statusCode == 304 ||
+            res.statusCode == 204 ||
+            res.body.trim().isEmpty) continue;
+        if (res.statusCode == 200) {
+          final decoded = jsonDecode(res.body);
+          List<dynamic> raw = [];
+          if (decoded is List) {
+            raw = decoded;
+          } else if (decoded is Map) {
+            for (final key in ['data', 'roles', 'content', 'items']) {
+              if (decoded[key] is List) {
+                raw = decoded[key] as List<dynamic>;
+                break;
+              }
+            }
+          }
+          if (raw.isEmpty) continue;
+          final roles = raw
+              .map((e) => RoleModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          if (mounted) {
+            setState(() {
+              _availableRoles = roles;
+              _rolesLoading = false;
+            });
+          }
+          return;
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _rolesLoading = false;
+        _rolesError = 'Could not load roles';
+      });
+    }
+  }
+
+  // ── Add selected feature+actions to current permissions ───────────────────
+  void _addPermission() {
+    if (_selectedFeature == null || _selectedActions.isEmpty) return;
+    setState(() {
+      final existing =
+          List<String>.from(_currentPermissions[_selectedFeature!] ?? []);
+      for (final a in _selectedActions) {
+        if (!existing.contains(a)) existing.add(a);
+      }
+      _currentPermissions[_selectedFeature!] = existing;
+      // Reset add-row
+      _selectedFeature = null;
+      _selectedActions = [];
+    });
+  }
+
+  // ── Remove an entire feature group ────────────────────────────────────────
+  void _removeFeature(String key) {
+    setState(() => _currentPermissions.remove(key));
+  }
+
+  // ── Save (PUT /api/roles/:id) ──────────────────────────────────────────────
+  Future<void> _save() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      _showSnack('Role name is required');
+      return;
+    }
+    setState(() => _isSaving = true);
+    // Build payload – adapt shape to your API
+    final body = jsonEncode({
+      'name': _nameCtrl.text.trim(),
+      'description': _descCtrl.text.trim(),
+      'permissions': _currentPermissions,
+    });
+    try {
+      final res = await http
+          .put(
+            Uri.parse(
+                'http://125.209.66.147:5001/api/roles/${widget.user.id}'),
+            headers: {
+              'Authorization': 'Bearer ${widget.token}',
+              'Content-Type': 'application/json',
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        _showSnack('Update failed (${res.statusCode})');
+        setState(() => _isSaving = false);
+      }
+    } catch (e) {
+      _showSnack('Network error: $e');
+      setState(() => _isSaving = false);
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _close() {
+    _ctrl.reverse().then((_) {
+      if (mounted) Navigator.pop(context, false);
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.88,
+          ),
+          decoration: BoxDecoration(
+            color: _C.surface,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.18),
@@ -1258,199 +1936,34 @@ class _DialogContentState extends State<_DialogContent>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Header ───────────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border(
-                      bottom: BorderSide(color: _C.border, width: 1)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _C.chip,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: _C.primary.withOpacity(0.18), width: 1),
+              _buildHeader(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        controller: _nameCtrl,
+                        label: 'Role Name *',
+                        hint: 'Enter role name',
                       ),
-                      child: const Icon(Icons.visibility_outlined,
-                          size: 18, color: _C.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      "View User",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _C.ink,
-                        letterSpacing: -0.4,
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _descCtrl,
+                        label: 'Description',
+                        hint: 'Enter description',
+                        minLines: 3,
+                        maxLines: 5,
                       ),
-                    ),
-                    const Spacer(),
-                    // X close button
-                    GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: _C.bg,
-                          borderRadius: BorderRadius.circular(10),
-                          border:
-                              Border.all(color: _C.border, width: 1.1),
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            size: 18, color: _C.muted),
-                      ),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      _buildPermissionsCard(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
-
-              // ── Body ─────────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Avatar + name row
-                    Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: _C.chip,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: _C.primary.withOpacity(0.22),
-                                width: 2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              widget.user.username.isNotEmpty
-                                  ? widget.user.username[0].toUpperCase()
-                                  : "U",
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: _C.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.user.username,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: _C.ink,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              "ID #${widget.user.id}",
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: _C.muted,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        _StatusChip(isActive: widget.user.isActive),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-                    _dialogDivider(),
-                    const SizedBox(height: 20),
-
-                    // Fields
-                    _DialogField(
-                      label: "Username",
-                      value: widget.user.username,
-                      icon: Icons.person_outline_rounded,
-                    ),
-                    const SizedBox(height: 14),
-                    _DialogField(
-                      label: "Email",
-                      value: widget.user.email,
-                      icon: Icons.email_outlined,
-                    ),
-                    const SizedBox(height: 14),
-                    _DialogField(
-                      label: "Role",
-                      value: widget.user.role,
-                      icon: Icons.shield_outlined,
-                      isRole: true,
-                    ),
-                    const SizedBox(height: 14),
-                    _DialogField(
-                      label: "Regions",
-                      value: "No regions selected",
-                      icon: Icons.location_on_outlined,
-                      isEmpty: true,
-                    ),
-                    const SizedBox(height: 14),
-                    _DialogField(
-                      label: "Created At",
-                      value: widget.user.createdAt,
-                      icon: Icons.calendar_today_outlined,
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── Footer ───────────────────────────────────────────────────
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: _C.bg,
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(24)),
-                  border: Border(
-                      top: BorderSide(color: _C.border, width: 1)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 11),
-                        decoration: BoxDecoration(
-                          color: _C.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: _C.border, width: 1.3),
-                        ),
-                        child: const Text(
-                          "CLOSE",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: _C.blueText,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildFooter(),
             ],
           ),
         ),
@@ -1458,94 +1971,489 @@ class _DialogContentState extends State<_DialogContent>
     );
   }
 
-  Widget _dialogDivider() =>
-      Container(height: 1, color: _C.border.withOpacity(0.7));
-}
+  // ── Header ──────────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+      decoration: BoxDecoration(
+        color: _C.surface,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(bottom: BorderSide(color: _C.border, width: 1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.edit_outlined, size: 20, color: _C.ink),
+          const SizedBox(width: 10),
+          const Text(
+            'Edit Role',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: _C.ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: _close,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _C.bg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _C.border, width: 1.1),
+              ),
+              child: const Icon(Icons.close_rounded,
+                  size: 17, color: _C.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-// ─── Dialog Field Row ─────────────────────────────────────────────────────────
-class _DialogField extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool isRole;
-  final bool isEmpty;
+  // ── Text field ───────────────────────────────────────────────────────────────
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    int minLines = 1,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      minLines: minLines,
+      maxLines: maxLines,
+      style: const TextStyle(fontSize: 14, color: _C.ink),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle:
+            const TextStyle(fontSize: 12, color: _C.muted),
+        hintStyle:
+            const TextStyle(fontSize: 13, color: _C.muted),
+        filled: true,
+        fillColor: const Color(0xFFF5F5F5),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: _C.border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide:
+              const BorderSide(color: _C.blueText, width: 1.5),
+        ),
+      ),
+    );
+  }
 
-  const _DialogField({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.isRole  = false,
-    this.isEmpty = false,
-  });
+  // ── Permissions card ─────────────────────────────────────────────────────────
+  Widget _buildPermissionsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _C.surface,
+        border: Border.all(color: _C.border, width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Card title
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(
+              'Permissions',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: _C.ink,
+              ),
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: _C.border),
+          const SizedBox(height: 14),
 
-  @override
-  Widget build(BuildContext context) {
+          // ── Feature dropdown + action checkboxes + ADD ────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: _buildAddRow(),
+          ),
+
+          const SizedBox(height: 14),
+          const Divider(height: 1, thickness: 1, color: _C.border),
+          const SizedBox(height: 12),
+
+          // Current permissions header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Current Permissions ($_totalPermissions)',
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: _C.ink,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Permission rows
+          if (_currentPermissions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
+              child: Text(
+                'No permissions added yet.',
+                style: TextStyle(fontSize: 13, color: _C.muted),
+              ),
+            )
+          else
+            ..._currentPermissions.entries.map((e) =>
+                _buildPermissionRow(e.key, e.value)),
+
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+
+  // ── Add-row: feature picker + action checkboxes + ADD button ───────────────
+  Widget _buildAddRow() {
+    // Features not yet in current permissions (can still add more actions)
+    final features = _rolesLoading
+        ? _allFeatures
+        : (_availableRoles.isNotEmpty
+            ? _availableRoles
+                .expand((r) => r.permissions.keys)
+                .toSet()
+                .toList()
+            : _allFeatures);
+
+    // Actions available for the selected feature
+    List<String> availableActions = _allActions;
+    if (_selectedFeature != null && _availableRoles.isNotEmpty) {
+      for (final r in _availableRoles) {
+        if (r.permissions.containsKey(_selectedFeature)) {
+          availableActions = r.permissions[_selectedFeature]!;
+          break;
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: _C.muted,
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 6),
-        // Value box
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: _C.bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _C.border, width: 1.1),
-          ),
-          child: Row(
-            children: [
-              Icon(icon,
-                  size: 16,
-                  color: isEmpty ? _C.border : _C.muted),
-              const SizedBox(width: 10),
-              if (isRole)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _C.blueChip,
-                    borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: _C.blueBorder, width: 1),
-                  ),
-                  child: Text(
-                    value,
-                    style: const TextStyle(
-                      color: _C.blueText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Feature dropdown
+            Expanded(
+              flex: 3,
+              child: Container(
+                height: 46,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: _C.border, width: 1.2),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedFeature,
+                    hint: const Text(
+                      'Feature *',
+                      style:
+                          TextStyle(fontSize: 13, color: _C.muted),
                     ),
-                  ),
-                )
-              else
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: isEmpty ? _C.border : _C.ink,
-                    fontWeight: isEmpty
-                        ? FontWeight.w400
-                        : FontWeight.w500,
-                    fontStyle: isEmpty
-                        ? FontStyle.italic
-                        : FontStyle.normal,
+                    isExpanded: true,
+                    icon: const Icon(
+                        Icons.unfold_more_rounded,
+                        size: 18,
+                        color: _C.muted),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        color: _C.ink,
+                        fontWeight: FontWeight.w500),
+                    borderRadius: BorderRadius.circular(10),
+                    items: features
+                        .map((f) => DropdownMenuItem(
+                              value: f,
+                              child: Text(_toLabel(f)),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() {
+                      _selectedFeature = v;
+                      _selectedActions = [];
+                    }),
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // ADD button
+            GestureDetector(
+              onTap: (_selectedFeature != null &&
+                      _selectedActions.isNotEmpty)
+                  ? _addPermission
+                  : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                height: 46,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: BoxDecoration(
+                  color: (_selectedFeature != null &&
+                          _selectedActions.isNotEmpty)
+                      ? _C.blueText
+                      : const Color(0xFFD0D0D0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_rounded,
+                        size: 16,
+                        color: (_selectedFeature != null &&
+                                _selectedActions.isNotEmpty)
+                            ? Colors.white
+                            : _C.muted),
+                    const SizedBox(width: 5),
+                    Text(
+                      'ADD',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: (_selectedFeature != null &&
+                                _selectedActions.isNotEmpty)
+                            ? Colors.white
+                            : _C.muted,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // Action checkboxes — shown when feature is selected
+        if (_selectedFeature != null) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: availableActions.map((action) {
+              final checked = _selectedActions.contains(action);
+              return GestureDetector(
+                onTap: () => setState(() {
+                  checked
+                      ? _selectedActions.remove(action)
+                      : _selectedActions.add(action);
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: checked
+                        ? _C.blueText.withOpacity(0.10)
+                        : const Color(0xFFF0F0F0),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: checked
+                          ? _C.blueText.withOpacity(0.5)
+                          : _C.border,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        checked
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
+                        size: 15,
+                        color: checked ? _C.blueText : _C.muted,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _cap(action),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: checked ? _C.blueText : _C.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          // "Select Permissions" hint
+          const Text(
+            'Select Permissions *',
+            style: TextStyle(
+                fontSize: 11.5,
+                color: _C.muted,
+                fontWeight: FontWeight.w500),
+          ),
+        ] else ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Select Permissions *\nPlease select a feature first',
+            style: TextStyle(
+                fontSize: 12,
+                color: _C.muted,
+                height: 1.5),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Single current-permission row with ✕ ────────────────────────────────────
+  Widget _buildPermissionRow(String key, List<String> actions) {
+    return Column(
+      children: [
+        Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _toLabel(key),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: _C.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      actions.map(_cap).join(', '),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                        color: _C.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // ✕ remove button
+              GestureDetector(
+                onTap: () => _removeFeature(key),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: _C.primary.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.close_rounded,
+                      size: 16, color: _C.primary),
+                ),
+              ),
             ],
           ),
         ),
+        Divider(
+            height: 1,
+            thickness: 1,
+            color: _C.border.withOpacity(0.7)),
       ],
+    );
+  }
+
+  // ── Footer ───────────────────────────────────────────────────────────────────
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: _C.surface,
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(20)),
+        border: Border(top: BorderSide(color: _C.border, width: 1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // CANCEL
+          GestureDetector(
+            onTap: _close,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 11),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _C.border, width: 1.3),
+              ),
+              child: const Text(
+                'CANCEL',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _C.blueText,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // UPDATE
+          GestureDetector(
+            onTap: _isSaving ? null : _save,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 28, vertical: 11),
+              decoration: BoxDecoration(
+                color: _isSaving
+                    ? _C.blueText.withOpacity(0.5)
+                    : _C.blueText,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: _C.blueText.withOpacity(0.28),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'UPDATE',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
