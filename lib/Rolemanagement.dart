@@ -1,1393 +1,1271 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_project_1/CreateUserScreen.dart';
-import 'package:flutter_project_1/EditUserScreen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/foundation.dart'; // compute()
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-class _C {
-  static const bg          = Color(0xFFF8F4F0);
-  static const surface     = Color(0xFFFFFFFF);
-  static const primary     = Color(0xFFE60023);
-  static const primaryDark = Color(0xFFAD081B);
-  static const ink         = Color(0xFF111111);
-  static const muted       = Color(0xFF767676);
-  static const border      = Color(0xFFE0DAD4);
-  static const chip        = Color(0xFFFFF0F1);
-  static const activeGreen = Color(0xFF00A699);
-  static const headerBg    = Color(0xFFFDF9F7);
-  static const blueChip    = Color(0xFFEBF5FF);
-  static const blueBorder  = Color(0xFFBDDAF7);
-  static const blueText    = Color(0xFF1A6FB0);
-}
+// ─── NOTE: AppColors is defined in main.dart. This file reuses it.
+// ─── Ensure this file is imported alongside main.dart in your project.
 
-// ─── Model ────────────────────────────────────────────────────────────────────
-class UserModel {
+// ─── Role Model ───────────────────────────────────────────────────────────────
+class RoleModel {
   final int id;
-  final int roleId;
-  final String username;
-  final String email;
-  final String role;
-  final String roleName;
-  final String roleDescription;
-  // FIX: permissions is now mutable so we can update it after edit
-  Map<String, List<String>> permissions;
+  String roleName;
+  String description;
   final String createdAt;
-  final bool isActive;
 
-  UserModel({
+  RoleModel({
     required this.id,
-    this.roleId = 0,
-    required this.username,
-    required this.email,
-    required this.role,
-    this.roleName = '',
-    this.roleDescription = '',
-    Map<String, List<String>>? permissions,
+    required this.roleName,
+    required this.description,
     required this.createdAt,
-    this.isActive = true,
-  }) : permissions = permissions ?? {};
-
-  factory UserModel.fromJson(Map<String, dynamic> json) {
-    String roleStr = '-';
-    String roleNameStr = '';
-    String roleDescStr = '';
-    Map<String, List<String>> permsMap = {};
-    int parsedRoleId = 0;
-
-    if (json['role'] is Map) {
-      final roleObj = json['role'] as Map<String, dynamic>;
-      roleStr = roleObj['name'] ?? roleObj['roleName'] ?? '-';
-      roleNameStr = roleStr;
-      roleDescStr = roleObj['description'] ?? '';
-      parsedRoleId = roleObj['id'] ?? roleObj['roleId'] ?? 0;
-      if (roleObj['permissions'] is Map) {
-        final raw = roleObj['permissions'] as Map<String, dynamic>;
-        raw.forEach((key, val) {
-          if (val is List) {
-            permsMap[key] = val.map((e) => e.toString()).toList();
-          }
-        });
-      }
-    } else {
-      roleStr = json['role'] ?? json['roleName'] ?? '-';
-      roleNameStr = roleStr;
-      parsedRoleId = json['roleId'] ?? json['role_id'] ?? 0;
-    }
-
-    return UserModel(
-      id: json['id'] ?? 0,
-      roleId: parsedRoleId,
-      username: json['username'] ?? '-',
-      email: json['email'] ?? '-',
-      role: roleStr,
-      roleName: roleNameStr,
-      roleDescription: roleDescStr,
-      permissions: permsMap,
-      createdAt: json['created_at'] ?? json['createdAt'] ?? '-',
-      isActive: json['is_active'] ?? json['isActive'] ?? true,
-    );
-  }
+  });
 }
 
-// ── Top-level isolate function for JSON parsing ───────────────────────────────
-List<UserModel> _parseUsers(String body) {
-  final dynamic decoded = jsonDecode(body);
-  List<dynamic> rawList = [];
-  if (decoded is List) {
-    rawList = decoded;
-  } else if (decoded is Map) {
-    for (final key in ['data', 'users', 'content', 'items']) {
-      if (decoded[key] is List) {
-        rawList = decoded[key] as List<dynamic>;
-        break;
-      }
-    }
-  }
-  return rawList
-      .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
-      .toList();
+// ─── Colour Palette (mirrors main.dart AppColors exactly) ────────────────────
+class AppColors {
+  static const bg         = Color(0xFFF5F7FA);
+  static const surface    = Color(0xFFFFFFFF);
+  static const surfaceAlt = Color(0xFFF0F4F9);
+  static const primary    = Color(0xFF1A2B4A);
+  static const primaryMid = Color(0xFF243B5E);
+  static const accent     = Color(0xFF3B7DD8);
+  static const accentLight= Color(0xFFEBF3FF);
+  static const red        = Color(0xFFE53935);
+  static const redLight   = Color(0xFFFFEBEE);
+  static const warning    = Color(0xFFF57F17);
+  static const warningLight=Color(0xFFFFF8E1);
+  static const success    = Color(0xFF26A69A);
+  static const purple     = Color(0xFF5C35B5);
+  static const purpleLight= Color(0xFFEFEBFA);
+  static const textHead   = Color(0xFF1A2B4A);
+  static const textBody   = Color(0xFF3A4A5C);
+  static const textMuted  = Color(0xFF8A9BB5);
+  static const border     = Color(0xFFE2E8F0);
+  static const divider    = Color(0xFFEDF2F7);
 }
 
-// ─── Default permissions used as fallback ─────────────────────────────────────
-// FIX: Extracted to a top-level getter so both View and Edit use the same source
-Map<String, List<String>> _defaultPermissions() => {
-  'vendorAssignment':       ['read', 'create', 'update', 'delete'],
-  'user':                   ['read', 'create', 'update', 'delete'],
-  'role':                   ['read', 'create', 'update', 'delete'],
-  'vendorRequests':         ['read', 'create', 'update', 'delete'],
-  'shopboardRequest':       ['read', 'create', 'update', 'delete', 'approvals'],
-  'requestPriceAdjustment': ['read', 'create', 'update', 'delete'],
-  'requestTypes':           ['read', 'create', 'update', 'delete'],
-  'statistics':             ['create', 'read', 'update', 'delete'],
-  'budgetManagement':       ['create', 'read', 'update', 'delete'],
-  'payments':               ['create', 'read', 'update', 'delete'],
-  'paymentBatch':           ['read', 'create', 'update', 'delete'],
-  'smtpSettings':           ['read', 'create', 'update', 'delete'],
-};
-
-// ─── FIX: Static permissions cache keyed by user ID ──────────────────────────
-// Yeh cache dialog close hone ke baad bhi permissions yaad rakhta hai.
-// Jab user cross kare ya cancel kare, edited permissions yahan stored rehti hain.
-// Jab dialog dobara khule, wohi saved permissions load hoti hain — fresh seed nahi.
-final Map<int, Map<String, List<String>>> _userPermissionsCache = {};
-
-class UserManagementScreen extends StatefulWidget {
-  const UserManagementScreen({super.key});
+// ─── Role Management Screen ───────────────────────────────────────────────────
+class RoleManagementScreen extends StatefulWidget {
+  const RoleManagementScreen({super.key});
 
   @override
-  State<UserManagementScreen> createState() => _UserManagementScreenState();
+  State<RoleManagementScreen> createState() => _RoleManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen>
-    with SingleTickerProviderStateMixin {
-  List<UserModel> allUsers = [];
-  List<UserModel> users = [];
-  bool isLoading = true;
-  String? errorMessage;
-
-  static List<UserModel>? _cachedUsers;
-
-  int _currentPage = 1;
-  int _pageSize = 10;
-  int _totalPages = 1;
-  final List<int> _pageSizeOptions = [5, 10, 20, 50];
-
-  late AnimationController _animCtrl;
+class _RoleManagementScreenState extends State<RoleManagementScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
 
-  final String token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODc0OTc1NSwiZXhwIjoxNzc5MzU0NTU1fQ.Sb5xCnHnUoIoN2c3JvBU1ldMDe2_7wJBsPGeGyZe-v0";
+  int _rowsPerPage = 10;
+  int _currentPage = 0;
+
+  final List<RoleModel> _allRoles = [
+    RoleModel(id: 1,  roleName: 'Super Admin',         description: 'Full system access and control over all modules',        createdAt: '11/11/2025\n23:45:48'),
+    RoleModel(id: 6,  roleName: 'Marketing Manager',   description: 'This role is for marketing managers with limited access', createdAt: '11/11/2025\n23:57:24'),
+    RoleModel(id: 7,  roleName: 'Auditor',             description: 'This role is for auditor only with read access',          createdAt: '11/11/2025\n23:59:45'),
+    RoleModel(id: 8,  roleName: 'Marketing Executive', description: 'This role is only for marketing executives',              createdAt: '12/11/2025\n00:00:51'),
+    RoleModel(id: 9,  roleName: 'User',                description: 'This is the user role with basic permissions',            createdAt: '12/11/2025\n22:17:05'),
+    RoleModel(id: 10, roleName: 'Area Sales Head',     description: 'This is the role for area sales heads',                  createdAt: '16/11/2025\n21:10:34'),
+    RoleModel(id: 11, roleName: 'Vendor',              description: 'This role is for vendors with limited portal access',     createdAt: '21/11/2025\n01:46:10'),
+    RoleModel(id: 12, roleName: 'Finance',             description: 'This role is reserved for finance department',            createdAt: '22/11/2025\n12:45:12'),
+    RoleModel(id: 13, roleName: 'Test Role',           description: '',                                                        createdAt: '11/05/2026\n21:08:14'),
+  ];
+
+  List<RoleModel> get _pagedRoles {
+    final start = _currentPage * _rowsPerPage;
+    final end   = (start + _rowsPerPage).clamp(0, _allRoles.length);
+    return _allRoles.sublist(start, end);
+  }
+
+  int get _totalPages => (_allRoles.length / _rowsPerPage).ceil().clamp(1, 9999);
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 250));
-    _fadeAnim =
-        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.03), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
-    _animCtrl.forward();
-
-    if (_cachedUsers != null && _cachedUsers!.isNotEmpty) {
-      allUsers = List.of(_cachedUsers!);
-      isLoading = false;
-      _applyPaginationSilent();
-      _refreshInBackground();
-    } else {
-      fetchUsers(forceRefresh: false);
-    }
+    _fadeCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeCtrl.forward();
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
+    _fadeCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _refreshInBackground() async {
-    final fresh = await _loadFromNetwork(sendNoCache: false);
-    if (fresh != null && mounted) {
-      setState(() {
-        allUsers = fresh;
-        _cachedUsers = fresh;
-        _applyPaginationSilent();
-      });
-    }
+  String _trunc(String text, {int max = 18}) =>
+      text.isEmpty ? '' : (text.length > max ? '${text.substring(0, max)}...' : text);
+
+  // ─── Snackbar ─────────────────────────────────────────────────────────────
+  void _snack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 2),
+    ));
   }
 
-  Future<void> fetchUsers({bool forceRefresh = true}) async {
-    if (forceRefresh) {
-      _cachedUsers = null;
-      // FIX: Refresh karti toh permissions cache bhi clear karo
-      // taake fresh data se naye permissions aayein
-      _userPermissionsCache.clear();
-    }
-    if (mounted) setState(() { isLoading = true; errorMessage = null; });
+  // ─── Shared Input Decoration ──────────────────────────────────────────────
+  InputDecoration _inputDec({required String hint, required IconData icon}) =>
+      InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+        prefixIcon: Icon(icon, color: AppColors.textMuted, size: 17),
+        filled: true,
+        fillColor: AppColors.surfaceAlt,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.border, width: 0.8)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.border, width: 0.8)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.accent, width: 1.4)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.red, width: 1)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.red, width: 1.4)),
+      );
 
-    final result = await _loadFromNetwork(sendNoCache: forceRefresh);
-    if (!mounted) return;
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        allUsers = result;
-        _cachedUsers = result;
-        _currentPage = 1;
-        _applyPaginationSilent();
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-        if (allUsers.isEmpty) errorMessage = "Could not load users.";
-      });
-    }
-  }
-
-  Future<List<UserModel>?> _loadFromNetwork({required bool sendNoCache}) async {
-    final urls = [
-      "http://125.209.66.147:5001/api/users?page=1&size=100",
-      "http://125.209.66.147:5001/api/users?page=0&size=100",
-      "http://125.209.66.147:5001/api/users",
-    ];
-    final headers = <String, String>{
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-      if (sendNoCache) "Cache-Control": "no-cache",
-    };
-    for (final urlStr in urls) {
-      try {
-        final response = await http
-            .get(Uri.parse(urlStr), headers: headers)
-            .timeout(const Duration(seconds: 6));
-        if (response.statusCode == 304) return _cachedUsers;
-        if (response.statusCode == 204 || response.body.trim().isEmpty) continue;
-        if (response.statusCode == 200) {
-          final parsed = await compute(_parseUsers, response.body);
-          if (parsed.isEmpty) continue;
-          return parsed;
-        }
-      } catch (_) {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  void _applyPaginationSilent() {
-    final total = allUsers.length;
-    _totalPages = (total / _pageSize).ceil();
-    if (_totalPages == 0) _totalPages = 1;
-    if (_currentPage > _totalPages) _currentPage = _totalPages;
-    final start = (_currentPage - 1) * _pageSize;
-    final end = (start + _pageSize).clamp(0, total);
-    users = allUsers.sublist(start, end);
-  }
-
-  void _applyPagination() {
-    setState(() {
-      final total = allUsers.length;
-      _totalPages = (total / _pageSize).ceil();
-      if (_totalPages == 0) _totalPages = 1;
-      if (_currentPage > _totalPages) _currentPage = _totalPages;
-      final start = (_currentPage - 1) * _pageSize;
-      final end = (start + _pageSize).clamp(0, total);
-      users = allUsers.sublist(start, end);
-    });
-  }
-
-  void _goToPage(int page) {
-    if (page < 1 || page > _totalPages) return;
-    setState(() => _currentPage = page);
-    _applyPagination();
-  }
-
-  void _openViewDialog(UserModel user) {
+  // ─── Delete Dialog ────────────────────────────────────────────────────────
+  void _showDeleteDialog(RoleModel role) {
     showDialog(
       context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.4),
-      // FIX: View dialog ko cached permissions pass karo
-      builder: (_) => _ViewRoleDialog(
-        user: user,
-        cachedPermissions: _userPermissionsCache[user.id],
-      ),
-    );
-  }
-
-  void _openEditScreen(UserModel user) async {
-    final result = await showDialog<Map<String, List<String>>?>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.4),
-      builder: (_) => _EditRoleDialog(
-        user: user,
-        token: token,
-        // FIX: Cached permissions pass karo — agar pehle edit hua hai toh wahi load hoga
-        initialPermissions: _userPermissionsCache[user.id],
-      ),
-    );
-
-    // FIX: Dialog ne jo bhi permissions return kiye (cancel ya save dono mein),
-    // unhe cache mein store karo. Is tarah dobara kholne par same state milegi.
-    if (result != null && mounted) {
-      setState(() {
-        _userPermissionsCache[user.id] = result;
-        // UserModel mein bhi update karo taake View dialog bhi updated dekhe
-        final idx = allUsers.indexWhere((u) => u.id == user.id);
-        if (idx != -1) {
-          allUsers[idx].permissions = result;
-        }
-      });
-    }
-
-    // Agar API update successful tha (result == true equivalent), refresh karo
-    // Lekin ab hum permissions map return karte hain, toh null check se pata chalega
-    // Agar save hua toh network refresh
-    if (result != null) {
-      // Check if it was a successful save by refreshing after delay
-      await Future.delayed(const Duration(milliseconds: 400));
-      // Only refresh network if result came from save (not cancel)
-      // Cancel bhi result return karta hai saved state ke saath — yeh intentional hai
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _C.bg,
-
-      appBar: AppBar(
-        backgroundColor: _C.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: 20,
-        title: Row(
-          children: [
-            Container(
-              width: 5,
-              height: 20,
-              decoration: BoxDecoration(
-                color: _C.primary,
-                borderRadius: BorderRadius.circular(3),
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+        contentPadding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+                color: AppColors.redLight,
+                borderRadius: BorderRadius.circular(11)),
+            child: const Icon(Icons.delete_rounded,
+                color: AppColors.red, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text('Delete Role',
+              style: TextStyle(
+                  color: AppColors.textHead,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800)),
+        ]),
+        content: RichText(
+          text: TextSpan(
+            style: const TextStyle(
+                color: AppColors.textBody, fontSize: 13.5, height: 1.55),
+            children: [
+              const TextSpan(text: 'Are you sure you want to delete '),
+              TextSpan(
+                  text: '"${role.roleName}"',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, color: AppColors.red)),
+              const TextSpan(text: '?\nThis action cannot be undone.'),
+            ],
+          ),
+        ),
+        actions: [
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textMuted,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              "User Management",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: _C.ink,
-                letterSpacing: -0.4,
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  final name = role.roleName;
+                  setState(() => _allRoles.removeWhere((r) => r.id == role.id));
+                  Navigator.pop(context);
+                  _snack('Role "$name" deleted', AppColors.red);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.red,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Delete',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
               ),
             ),
-          ],
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: _C.border),
-        ),
-        actions: [
-          _AppBarIconButton(icon: Icons.refresh_rounded, onTap: fetchUsers),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: _CreateButton(
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateUserScreen(),
-                  ),
-                );
-                fetchUsers();
-              },
-            ),
-          ),
+          ]),
         ],
       ),
+    );
+  }
 
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SlideTransition(
-          position: _slideAnim,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
+  // ─── View Dialog ──────────────────────────────────────────────────────────
+  void _showViewDialog(RoleModel role) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "User Management",
+              // ── Header ───────────────────────────────────────────────────
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                      color: AppColors.purpleLight,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.admin_panel_settings_rounded,
+                      color: AppColors.purple, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('Role Details',
                         style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: _C.ink,
-                          letterSpacing: -0.6,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      if (!isLoading && allUsers.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _C.chip,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: _C.primary.withOpacity(0.18),
-                                width: 1),
-                          ),
-                          child: Text(
-                            "${allUsers.length}",
-                            style: const TextStyle(
-                              color: _C.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "Manage your team members and their access",
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: _C.muted,
-                        fontWeight: FontWeight.w400),
-                  ),
-                  const SizedBox(height: 20),
+                            color: AppColors.textHead,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800)),
+                    Text('ID: ${role.id}',
+                        style: const TextStyle(
+                            color: AppColors.textMuted, fontSize: 11)),
+                  ]),
+                ),
+                _CloseBtn(onTap: () => Navigator.pop(context)),
+              ]),
+              const SizedBox(height: 16),
+              const Divider(color: AppColors.divider, height: 1),
+              const SizedBox(height: 16),
 
-                  if (errorMessage != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF2F3),
-                        border: Border.all(
-                            color: _C.primary.withOpacity(0.25),
-                            width: 1.2),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded,
-                              color: _C.primary, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              errorMessage!,
-                              style: const TextStyle(
-                                  color: _C.primaryDark, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+              // ── Fields ───────────────────────────────────────────────────
+              _ViewField(label: 'Role ID',     value: '${role.id}',                          icon: Icons.tag_rounded),
+              const SizedBox(height: 10),
+              _ViewField(label: 'Role Name',   value: role.roleName,                         icon: Icons.shield_rounded),
+              const SizedBox(height: 10),
+              _ViewField(label: 'Description', value: role.description.isEmpty ? '—' : role.description, icon: Icons.description_rounded, multiline: true),
+              const SizedBox(height: 10),
+              _ViewField(label: 'Created At',  value: role.createdAt.replaceAll('\n', '  '), icon: Icons.calendar_today_rounded),
+              const SizedBox(height: 22),
 
+              // ── Close Button — navy like the dashboard primary ────────────
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  child: const Text('Close',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Edit Dialog ──────────────────────────────────────────────────────────
+  void _showEditDialog(RoleModel role) {
+    final nameCtrl = TextEditingController(text: role.roleName);
+    final descCtrl = TextEditingController(text: role.description);
+    final formKey  = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Form(
+              key: formKey,
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                // ── Header ─────────────────────────────────────────────────
+                Row(children: [
                   Container(
+                    padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: _C.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _C.border, width: 1.2),
+                        color: AppColors.accentLight,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.edit_rounded,
+                        color: AppColors.accent, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('Edit Role',
+                          style: TextStyle(
+                              color: AppColors.textHead,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                      Text('ID: ${role.id}',
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 11)),
+                    ]),
+                  ),
+                  _CloseBtn(onTap: () => Navigator.pop(ctx)),
+                ]),
+                const SizedBox(height: 16),
+                const Divider(color: AppColors.divider, height: 1),
+                const SizedBox(height: 16),
+
+                const _FormLabel(label: 'Role Name'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: nameCtrl,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Role name is required'
+                      : null,
+                  decoration: _inputDec(
+                      hint: 'Enter role name', icon: Icons.shield_rounded),
+                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
+                ),
+                const SizedBox(height: 14),
+
+                const _FormLabel(label: 'Description'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: descCtrl,
+                  maxLines: 3,
+                  decoration: _inputDec(
+                      hint: 'Enter role description',
+                      icon: Icons.description_rounded),
+                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
+                ),
+                const SizedBox(height: 22),
+
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textMuted,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: const Text('Cancel',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          setState(() {
+                            role.roleName    = nameCtrl.text.trim();
+                            role.description = descCtrl.text.trim();
+                          });
+                          Navigator.pop(ctx);
+                          _snack('Role "${role.roleName}" updated', AppColors.success);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: const Text('Save Changes',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Create Dialog ────────────────────────────────────────────────────────
+  void _showCreateDialog() {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final formKey  = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Form(
+              key: formKey,
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                // ── Header — gradient icon matching dashboard banner style ──
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1A2B4A), Color(0xFF243B5E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: _C.primary.withOpacity(0.03),
-                          blurRadius: 12,
-                          offset: const Offset(0, 2),
-                        ),
+                            color: AppColors.primary.withOpacity(0.28),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
                       ],
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Column(
+                    child: const Icon(Icons.add_moderator_rounded,
+                        color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14, horizontal: 16),
-                            color: _C.headerBg,
-                            child: const Row(
-                              children: [
-                                Expanded(flex: 1, child: _HeaderCell(label: "ID")),
-                                Expanded(flex: 2, child: _HeaderCell(label: "Username")),
-                                Expanded(flex: 3, child: _HeaderCell(label: "Email")),
-                                Expanded(flex: 2, child: _HeaderCell(label: "Role")),
-                                Expanded(flex: 2, child: _HeaderCell(label: "Status")),
-                                Expanded(flex: 3, child: _HeaderCell(label: "Created At")),
-                                Expanded(flex: 2, child: _HeaderCell(label: "Actions")),
-                              ],
-                            ),
-                          ),
-                          Container(height: 1, color: _C.border),
+                      Text('Create Role',
+                          style: TextStyle(
+                              color: AppColors.textHead,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                      Text('Add a new system role',
+                          style: TextStyle(
+                              color: AppColors.textMuted, fontSize: 11)),
+                    ]),
+                  ),
+                  _CloseBtn(onTap: () => Navigator.pop(ctx)),
+                ]),
+                const SizedBox(height: 16),
+                const Divider(color: AppColors.divider, height: 1),
+                const SizedBox(height: 16),
 
-                          if (isLoading)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 40),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    color: _C.primary,
-                                    strokeWidth: 2.5,
-                                  ),
-                                ),
-                              ),
-                            )
-                          else if (users.isEmpty)
-                            Column(
-                              children: [
-                                _buildEmptyRow(),
-                                _divider(),
-                                _buildEmptyRow(),
-                                _divider(),
-                                _buildEmptyRow(),
-                              ],
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: users.length,
-                              itemBuilder: (context, index) {
-                                return Column(
-                                  children: [
-                                    _buildRow(users[index]),
-                                    if (index != users.length - 1) _divider(),
-                                  ],
-                                );
-                              },
-                            ),
-                        ],
+                const _FormLabel(label: 'Role Name'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: nameCtrl,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Role name is required'
+                      : null,
+                  decoration: _inputDec(
+                      hint: 'e.g. Sales Manager', icon: Icons.shield_rounded),
+                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
+                ),
+                const SizedBox(height: 14),
+
+                const _FormLabel(label: 'Description'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: descCtrl,
+                  maxLines: 3,
+                  decoration: _inputDec(
+                      hint: 'Describe what this role can do...',
+                      icon: Icons.description_rounded),
+                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
+                ),
+                const SizedBox(height: 22),
+
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textMuted,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
+                      child: const Text('Cancel',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
                     ),
                   ),
-
-                  if (!isLoading && allUsers.isNotEmpty)
-                    _PaginationFooter(
-                      currentPage: _currentPage,
-                      totalPages: _totalPages,
-                      totalItems: allUsers.length,
-                      pageSize: _pageSize,
-                      pageSizeOptions: _pageSizeOptions,
-                      onPageChanged: _goToPage,
-                      onPageSizeChanged: (size) {
-                        setState(() {
-                          _pageSize = size;
-                          _currentPage = 1;
-                        });
-                        _applyPagination();
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          final newId = _allRoles.isEmpty
+                              ? 1
+                              : _allRoles.map((r) => r.id).reduce((a, b) => a > b ? a : b) + 1;
+                          final now = DateTime.now();
+                          String p(int n) => n.toString().padLeft(2, '0');
+                          final ds =
+                              '${p(now.day)}/${p(now.month)}/${now.year}\n${p(now.hour)}:${p(now.minute)}:${p(now.second)}';
+                          setState(() {
+                            _allRoles.add(RoleModel(
+                              id: newId,
+                              roleName: nameCtrl.text.trim(),
+                              description: descCtrl.text.trim(),
+                              createdAt: ds,
+                            ));
+                          });
+                          Navigator.pop(ctx);
+                          _snack('Role "${nameCtrl.text.trim()}" created', AppColors.success);
+                        }
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: const Text('Create Role',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                     ),
+                  ),
+                ]),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                  const SizedBox(height: 28),
+  // ─── BUILD ────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Column(children: [
+            _buildTopBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                  // ── Page Header — mirrors dashboard section header style ──
+                  Row(children: [
+                    const Text('Role Management',
+                        style: TextStyle(
+                            color: AppColors.textHead,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    // Refresh — matches dashboard icon button style
+                    GestureDetector(
+                      onTap: () => setState(() {}),
+                      child: Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.border, width: 0.7),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2))
+                          ],
+                        ),
+                        child: const Icon(Icons.refresh_rounded,
+                            color: AppColors.textMuted, size: 19),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // CREATE — accent blue, matches dashboard CTA style
+                    GestureDetector(
+                      onTap: _showCreateDialog,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                                color: AppColors.accent.withOpacity(0.30),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4))
+                          ],
+                        ),
+                        child: const Row(children: [
+                          Icon(Icons.add, color: Colors.white, size: 17),
+                          SizedBox(width: 5),
+                          Text('CREATE',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5)),
+                        ]),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // ── Summary Strip — mimics the _StatsRow cards ────────────
+                  Row(children: [
+                    _MiniStatCard(
+                      icon: Icons.admin_panel_settings_rounded,
+                      label: 'Total Roles',
+                      value: '${_allRoles.length}',
+                      iconColor: AppColors.purple,
+                      iconBg: AppColors.purpleLight,
+                    ),
+                    const SizedBox(width: 10),
+                    const _MiniStatCard(
+                      icon: Icons.verified_user_rounded,
+                      label: 'Active',
+                      value: 'All',
+                      iconColor: AppColors.success,
+                      iconBg: Color(0xFFE0F2F1),
+                    ),
+                    const SizedBox(width: 10),
+                    const _MiniStatCard(
+                      icon: Icons.lock_rounded,
+                      label: 'System',
+                      value: '1',
+                      iconColor: AppColors.warning,
+                      iconBg: AppColors.warningLight,
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // ── Table Card ────────────────────────────────────────────
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border, width: 0.7),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3))
+                      ],
+                    ),
+                    child: Column(children: [
+
+                      // ── Table toolbar ──────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                        child: Row(children: [
+                          // Section label
+                          const Icon(Icons.table_rows_rounded,
+                              color: AppColors.textMuted, size: 15),
+                          const SizedBox(width: 6),
+                          const Text('All Roles',
+                              style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          _ToolbarIconBtn(icon: Icons.view_column_rounded),
+                          const SizedBox(width: 7),
+                          _ToolbarIconBtn(icon: Icons.filter_list_rounded),
+                          const SizedBox(width: 7),
+                          _ToolbarIconBtn(icon: Icons.download_rounded),
+                        ]),
+                      ),
+
+                      // ── Column Headers ────────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: const BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          border: Border(
+                              top: BorderSide(color: AppColors.divider, width: 1),
+                              bottom: BorderSide(color: AppColors.divider, width: 1)),
+                        ),
+                        child: const Row(children: [
+                          _ColHeader(text: 'ID',   flex: 1),
+                          _ColHeader(text: 'Name', flex: 3),
+                          _ColHeader(text: 'Desc', flex: 3),
+                          _ColHeader(text: 'Date', flex: 2),
+                          _ColHeader(text: 'Actions', flex: 3, alignRight: true),
+                        ]),
+                      ),
+
+                      // ── Data Rows ─────────────────────────────────────────
+                      ..._pagedRoles.asMap().entries.map((e) {
+                        return _RoleRow(
+                          role: e.value,
+                          isEven: e.key % 2 == 0,
+                          trunc: _trunc,
+                          onView:   () => _showViewDialog(e.value),
+                          onEdit:   () => _showEditDialog(e.value),
+                          onDelete: () => _showDeleteDialog(e.value),
+                        );
+                      }),
+
+                      // ── Pagination Footer ─────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                              top: BorderSide(color: AppColors.divider, width: 1)),
+                        ),
+                        child: Row(children: [
+                          const Text('Rows:',
+                              style: TextStyle(
+                                  color: AppColors.textMuted, fontSize: 11)),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: _rowsPerPage,
+                                isDense: true,
+                                style: const TextStyle(
+                                    color: AppColors.textBody,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600),
+                                items: [5, 10, 25, 50]
+                                    .map((v) => DropdownMenuItem(
+                                        value: v, child: Text('$v')))
+                                    .toList(),
+                                onChanged: (v) => setState(() {
+                                  _rowsPerPage = v!;
+                                  _currentPage = 0;
+                                }),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${_currentPage * _rowsPerPage + 1}–'
+                            '${(_currentPage * _rowsPerPage + _pagedRoles.length)} '
+                            'of ${_allRoles.length}',
+                            style: const TextStyle(
+                                color: AppColors.textMuted, fontSize: 11),
+                          ),
+                          const Spacer(),
+                          _PagBtn(
+                              icon: Icons.chevron_left,
+                              enabled: _currentPage > 0,
+                              onTap: () => setState(() => _currentPage--)),
+                          const SizedBox(width: 4),
+                          _PagBtn(
+                              icon: Icons.chevron_right,
+                              enabled: _currentPage < _totalPages - 1,
+                              onTap: () => setState(() => _currentPage++)),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ─── Top Bar — matches dashboard TopBar exactly ───────────────────────────
+  Widget _buildTopBar() {
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(children: [
+        // Back button — same style as dashboard _IconBtn
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAlt,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border, width: 0.7),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textHead, size: 16),
+          ),
+        ),
+        const SizedBox(width: 11),
+        // Logo — identical to dashboard diamond circle
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary,
+              border: Border.all(
+                  color: AppColors.primaryMid.withOpacity(0.4), width: 1)),
+          child: const Icon(Icons.diamond, color: Colors.white, size: 19),
+        ),
+        const SizedBox(width: 10),
+        // Title stack — same font/size as dashboard top bar
+        const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Role Management',
+              style: TextStyle(
+                  color: AppColors.textHead,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2)),
+          Text('Manage system roles',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+        ]),
+        const Spacer(),
+        // Purple role count badge — matches dashboard stat badge pattern
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+              color: AppColors.purpleLight,
+              borderRadius: BorderRadius.circular(20)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.admin_panel_settings_rounded,
+                color: AppColors.purple, size: 13),
+            const SizedBox(width: 5),
+            Text('${_allRoles.length} Roles',
+                style: const TextStyle(
+                    color: AppColors.purple,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Mini Stat Card (matches _StatCard from dashboard) ───────────────────────
+class _MiniStatCard extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color iconColor, iconBg;
+  const _MiniStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.iconColor,
+    required this.iconBg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border, width: 0.7),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3))
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                  color: iconBg, borderRadius: BorderRadius.circular(9)),
+              child: Icon(icon, color: iconColor, size: 17)),
+          const SizedBox(height: 10),
+          Text(value,
+              style: const TextStyle(
+                  color: AppColors.textHead,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Role Row ─────────────────────────────────────────────────────────────────
+class _RoleRow extends StatefulWidget {
+  final RoleModel role;
+  final bool isEven;
+  final String Function(String, {int max}) trunc;
+  final VoidCallback onView;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _RoleRow({
+    required this.role,
+    required this.isEven,
+    required this.trunc,
+    required this.onView,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  State<_RoleRow> createState() => _RoleRowState();
+}
+
+class _RoleRowState extends State<_RoleRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: _hovered
+              ? AppColors.accentLight.withOpacity(0.55)
+              : widget.isEven
+                  ? AppColors.surface
+                  : AppColors.bg.withOpacity(0.6),
+          border: const Border(
+              bottom: BorderSide(color: AppColors.divider, width: 0.6)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ID
+            Expanded(
+              flex: 1,
+              child: Text('${widget.role.id}',
+                  style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ),
+            // Role Name
+            Expanded(
+              flex: 3,
+              child: Text(
+                widget.trunc(widget.role.roleName, max: 14),
+                style: const TextStyle(
+                    color: AppColors.textBody,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Description
+            Expanded(
+              flex: 3,
+              child: Tooltip(
+                message: widget.role.description,
+                preferBelow: true,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                textStyle: const TextStyle(color: Colors.white, fontSize: 11.5),
+                child: Text(
+                  widget.role.description.isEmpty
+                      ? '—'
+                      : widget.trunc(widget.role.description, max: 16),
+                  style: const TextStyle(
+                      color: AppColors.textMuted, fontSize: 11.5),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            // Date — single line, newline replaced with space
+            Expanded(
+              flex: 2,
+              child: Text(
+                widget.role.createdAt.replaceAll('\n', ' '),
+                style: const TextStyle(color: AppColors.textBody, fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Actions
+            Expanded(
+              flex: 3,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ActionIconBtn(
+                    icon: Icons.remove_red_eye_outlined,
+                    color: AppColors.textMuted,
+                    bg: AppColors.surfaceAlt,
+                    onTap: widget.onView,
+                  ),
+                  const SizedBox(width: 5),
+                  _ActionIconBtn(
+                    icon: Icons.edit_outlined,
+                    color: AppColors.accent,
+                    bg: AppColors.accentLight,
+                    onTap: widget.onEdit,
+                  ),
+                  const SizedBox(width: 5),
+                  _ActionIconBtn(
+                    icon: Icons.delete_outline_rounded,
+                    color: AppColors.red,
+                    bg: AppColors.redLight,
+                    onTap: widget.onDelete,
+                  ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRow(UserModel user) {
-    return _HoverableRow(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: Text(user.id.toString(),
-                  style: const TextStyle(fontSize: 13, color: _C.muted, fontWeight: FontWeight.w600)),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(user.username,
-                  style: const TextStyle(fontSize: 13, color: _C.ink, fontWeight: FontWeight.w700)),
-            ),
-            Expanded(
-              flex: 3,
-              child: Text(user.email,
-                  style: const TextStyle(fontSize: 13, color: _C.muted, fontWeight: FontWeight.w400)),
-            ),
-            Expanded(flex: 2, child: _RoleChip(role: user.role)),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: _StatusChip(isActive: user.isActive),
-              ),
-            ),
-            Expanded(
-              flex: 3,
-              child: Text(user.createdAt,
-                  style: const TextStyle(fontSize: 12, color: _C.muted, fontWeight: FontWeight.w400)),
-            ),
-            Expanded(
-              flex: 2,
-              child: ActionButtons(
-                onViewTap: () => _openViewDialog(user),
-                onEditTap: () => _openEditScreen(user),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildEmptyRow() {
-    return _HoverableRow(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        child: Row(
-          children: [
-            Expanded(flex: 1, child: Text("-", style: const TextStyle(fontSize: 13, color: _C.muted))),
-            Expanded(flex: 2, child: Text("-", style: const TextStyle(fontSize: 13, color: _C.muted))),
-            Expanded(flex: 3, child: Text("-", style: const TextStyle(fontSize: 13, color: _C.muted))),
-            const Expanded(flex: 2, child: _RoleChip(role: "Role")),
-            const Expanded(
-              flex: 2,
-              child: Padding(padding: EdgeInsets.only(left: 4), child: _StatusChip(isActive: true)),
-            ),
-            Expanded(flex: 3, child: Text("-", style: const TextStyle(fontSize: 12, color: _C.muted))),
-            const Expanded(flex: 2, child: ActionButtons(onEditTap: null, onViewTap: null)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _divider() => Container(height: 1, color: _C.border.withOpacity(0.7));
 }
 
-// ─── Header Cell ──────────────────────────────────────────────────────────────
-class _HeaderCell extends StatelessWidget {
-  final String label;
-  const _HeaderCell({required this.label});
+// ─── Shared Small Widgets ─────────────────────────────────────────────────────
+
+/// Column header — uses AppColors constants
+class _ColHeader extends StatelessWidget {
+  final String text;
+  final int flex;
+  final bool alignRight;
+  const _ColHeader(
+      {required this.text, required this.flex, this.alignRight = false});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _C.muted, letterSpacing: 0.7),
-    );
-  }
-}
-
-// ─── Hoverable Row ────────────────────────────────────────────────────────────
-class _HoverableRow extends StatefulWidget {
-  final Widget child;
-  const _HoverableRow({required this.child});
-
-  @override
-  State<_HoverableRow> createState() => _HoverableRowState();
-}
-
-class _HoverableRowState extends State<_HoverableRow> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        color: _hovered ? _C.bg : Colors.transparent,
-        child: widget.child,
+    return Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3),
       ),
     );
   }
 }
 
-// ─── AppBar Icon Button ───────────────────────────────────────────────────────
-class _AppBarIconButton extends StatefulWidget {
+/// Action icon button — scale animation matching _ActionTile in dashboard
+class _ActionIconBtn extends StatefulWidget {
   final IconData icon;
+  final Color color, bg;
   final VoidCallback onTap;
-  const _AppBarIconButton({required this.icon, required this.onTap});
+  const _ActionIconBtn({
+    required this.icon,
+    required this.color,
+    required this.bg,
+    required this.onTap,
+  });
 
   @override
-  State<_AppBarIconButton> createState() => _AppBarIconButtonState();
+  State<_ActionIconBtn> createState() => _ActionIconBtnState();
 }
 
-class _AppBarIconButtonState extends State<_AppBarIconButton> {
-  bool _hovered = false;
+class _ActionIconBtnState extends State<_ActionIconBtn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _c;
+  late Animation<double> _s;
 
   @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: _hovered ? _C.chip : _C.bg,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _C.border, width: 1.1),
-          ),
-          child: Icon(widget.icon, size: 18, color: _hovered ? _C.primary : _C.muted),
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
+    _s = Tween(begin: 1.0, end: 0.88).animate(_c);
   }
-}
-
-// ─── Create Button ────────────────────────────────────────────────────────────
-class _CreateButton extends StatefulWidget {
-  final VoidCallback onTap;
-  const _CreateButton({required this.onTap});
 
   @override
-  State<_CreateButton> createState() => _CreateButtonState();
-}
-
-class _CreateButtonState extends State<_CreateButton> {
-  bool _pressed = false;
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
+      onTapDown: (_) => _c.forward(),
       onTapUp: (_) {
-        setState(() => _pressed = false);
+        _c.reverse();
         widget.onTap();
       },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        decoration: BoxDecoration(
-          color: _pressed ? _C.primaryDark : _C.primary,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: _C.primary.withOpacity(_pressed ? 0.18 : 0.32),
-              blurRadius: _pressed ? 6 : 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.add_rounded, size: 16, color: Colors.white),
-            SizedBox(width: 6),
-            Text(
-              "CREATE",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 12.5,
-                letterSpacing: 0.7,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Role Chip ────────────────────────────────────────────────────────────────
-class _RoleChip extends StatelessWidget {
-  final String role;
-  const _RoleChip({required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: _C.blueChip,
-        border: Border.all(color: _C.blueBorder, width: 1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        role,
-        style: const TextStyle(color: _C.blueText, fontSize: 11.5, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-// ─── Status Chip ──────────────────────────────────────────────────────────────
-class _StatusChip extends StatelessWidget {
-  final bool isActive;
-  const _StatusChip({this.isActive = true});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isActive ? _C.activeGreen.withOpacity(0.08) : _C.primary.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isActive ? _C.activeGreen.withOpacity(0.28) : _C.primary.withOpacity(0.22),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: isActive ? _C.activeGreen : _C.primary,
-              shape: BoxShape.circle,
-            ),
+      onTapCancel: () => _c.reverse(),
+      child: ScaleTransition(
+        scale: _s,
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: widget.bg,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+                color: widget.color.withOpacity(0.15), width: 0.7),
           ),
-          const SizedBox(width: 5),
-          Text(
-            isActive ? "Active" : "Inactive",
-            style: TextStyle(
-              color: isActive ? _C.activeGreen : _C.primary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+          child: Icon(widget.icon, color: widget.color, size: 14),
+        ),
       ),
     );
   }
 }
 
-// ─── Action Buttons ───────────────────────────────────────────────────────────
-class ActionButtons extends StatelessWidget {
-  final VoidCallback? onEditTap;
-  final VoidCallback? onViewTap;
-  const ActionButtons({super.key, required this.onEditTap, this.onViewTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _ActionIcon(
-          icon: Icons.visibility_outlined,
-          color: _C.muted,
-          hoverColor: _C.activeGreen,
-          onTap: onViewTap,
-        ),
-        _ActionIcon(
-          icon: Icons.edit_outlined,
-          color: _C.muted,
-          hoverColor: _C.blueText,
-          onTap: onEditTap,
-        ),
-        _ActionIcon(
-          icon: Icons.delete_outline_rounded,
-          color: _C.muted,
-          hoverColor: _C.primary,
-          onTap: () {},
-        ),
-      ],
-    );
-  }
-}
-
-// ─── Action Icon ──────────────────────────────────────────────────────────────
-class _ActionIcon extends StatefulWidget {
+/// Toolbar icon button — matches dashboard _IconBtn surfaceAlt style
+class _ToolbarIconBtn extends StatelessWidget {
   final IconData icon;
-  final Color color;
-  final Color hoverColor;
-  final VoidCallback? onTap;
-
-  const _ActionIcon({
-    required this.icon,
-    required this.color,
-    required this.hoverColor,
-    this.onTap,
-  });
-
-  @override
-  State<_ActionIcon> createState() => _ActionIconState();
-}
-
-class _ActionIconState extends State<_ActionIcon> {
-  bool _hovered = false;
+  const _ToolbarIconBtn({required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    final Color activeColor = _hovered ? widget.hoverColor : widget.color;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: 30,
-          height: 30,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: _hovered ? widget.hoverColor.withOpacity(0.10) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(widget.icon, size: 16, color: activeColor),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Pagination Footer ────────────────────────────────────────────────────────
-class _PaginationFooter extends StatelessWidget {
-  final int currentPage;
-  final int totalPages;
-  final int totalItems;
-  final int pageSize;
-  final List<int> pageSizeOptions;
-  final ValueChanged<int> onPageChanged;
-  final ValueChanged<int> onPageSizeChanged;
-
-  const _PaginationFooter({
-    required this.currentPage,
-    required this.totalPages,
-    required this.totalItems,
-    required this.pageSize,
-    required this.pageSizeOptions,
-    required this.onPageChanged,
-    required this.onPageSizeChanged,
-  });
-
-  List<int?> _buildPageNumbers() {
-    if (totalPages <= 7) return List.generate(totalPages, (i) => i + 1);
-    final pages = <int?>[];
-    pages.add(1);
-    if (currentPage > 4) pages.add(null);
-    final start = (currentPage - 2).clamp(2, totalPages - 1);
-    final end   = (currentPage + 2).clamp(2, totalPages - 1);
-    for (int i = start; i <= end; i++) pages.add(i);
-    if (currentPage < totalPages - 3) pages.add(null);
-    if (totalPages > 1) pages.add(totalPages);
-    return pages;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final startItem = ((currentPage - 1) * pageSize) + 1;
-    final endItem   = (currentPage * pageSize).clamp(0, totalItems);
-    final pageNums  = _buildPageNumbers();
-
     return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 16, offset: const Offset(0, 4)),
-        ],
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border, width: 0.7),
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 12.5, color: _C.muted, fontWeight: FontWeight.w400),
-                  children: [
-                    const TextSpan(text: "Showing "),
-                    TextSpan(text: "$startItem–$endItem",
-                        style: const TextStyle(color: _C.ink, fontWeight: FontWeight.w700)),
-                    const TextSpan(text: " of "),
-                    TextSpan(text: "$totalItems",
-                        style: const TextStyle(color: _C.ink, fontWeight: FontWeight.w700)),
-                    const TextSpan(text: " users"),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  const Text("Rows:",
-                      style: TextStyle(fontSize: 12, color: _C.muted, fontWeight: FontWeight.w500)),
-                  const SizedBox(width: 8),
-                  Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: _C.bg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _C.border, width: 1.1),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: pageSize,
-                        isDense: true,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: _C.muted),
-                        style: const TextStyle(fontSize: 12.5, color: _C.ink, fontWeight: FontWeight.w600),
-                        borderRadius: BorderRadius.circular(10),
-                        items: pageSizeOptions
-                            .map((s) => DropdownMenuItem(value: s, child: Text("$s")))
-                            .toList(),
-                        onChanged: (v) { if (v != null) onPageSizeChanged(v); },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(height: 1, color: _C.border.withOpacity(0.6)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _PageBtn(label: "←", isDisabled: currentPage == 1, isActive: false,
-                  onTap: () => onPageChanged(currentPage - 1)),
-              const SizedBox(width: 4),
-              ...pageNums.map((p) {
-                if (p == null) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Text("…", style: TextStyle(fontSize: 13, color: _C.muted, fontWeight: FontWeight.w600)),
-                  );
-                }
-                return _PageBtn(
-                  label: "$p",
-                  isActive: p == currentPage,
-                  isDisabled: false,
-                  onTap: () => onPageChanged(p),
-                );
-              }),
-              const SizedBox(width: 4),
-              _PageBtn(label: "→", isDisabled: currentPage == totalPages, isActive: false,
-                  onTap: () => onPageChanged(currentPage + 1)),
-            ],
-          ),
-        ],
-      ),
+      child: Icon(icon, color: AppColors.textMuted, size: 17),
     );
   }
 }
 
-// ─── Individual Page Button ───────────────────────────────────────────────────
-class _PageBtn extends StatefulWidget {
-  final String label;
-  final bool isActive;
-  final bool isDisabled;
+/// Pagination button
+class _PagBtn extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
   final VoidCallback onTap;
-
-  const _PageBtn({required this.label, required this.isActive, required this.isDisabled, required this.onTap});
-
-  @override
-  State<_PageBtn> createState() => _PageBtnState();
-}
-
-class _PageBtnState extends State<_PageBtn> {
-  bool _hovered = false;
+  const _PagBtn({required this.icon, required this.enabled, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    Color bgColor = Colors.transparent;
-    Color textColor = _C.muted;
-    Color borderColor = Colors.transparent;
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: enabled ? AppColors.surfaceAlt : AppColors.divider,
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: AppColors.border, width: 0.7),
+        ),
+        child: Icon(icon,
+            color: enabled ? AppColors.textBody : AppColors.textMuted,
+            size: 17),
+      ),
+    );
+  }
+}
 
-    if (widget.isActive) {
-      bgColor = _C.primary; textColor = Colors.white; borderColor = _C.primary;
-    } else if (_hovered && !widget.isDisabled) {
-      bgColor = _C.chip; textColor = _C.primary; borderColor = _C.primary.withOpacity(0.3);
-    } else if (widget.isDisabled) {
-      textColor = _C.border;
-    }
+/// Close button used in dialogs
+class _CloseBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CloseBtn({required this.onTap});
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.isDisabled ? null : widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: 34,
-          height: 34,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: bgColor,
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: borderColor, width: 1.2),
-          ),
-          child: Center(
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: widget.label.length > 2 ? 14 : 13,
-                fontWeight: widget.isActive ? FontWeight.w800 : FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-          ),
-        ),
+            border: Border.all(color: AppColors.border, width: 0.7)),
+        child: const Icon(Icons.close, color: AppColors.textMuted, size: 16),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── View Role Dialog ─────────────────────────────────────────────────────────
-// FIX: cachedPermissions parameter added — agar user ne pehle edit kiya tha
-//      toh wahi permissions show hongi, fresh seed nahi.
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _ViewRoleDialog extends StatelessWidget {
-  final UserModel user;
-  // FIX: Cached permissions jo parent ne pass ki hain
-  final Map<String, List<String>>? cachedPermissions;
-
-  const _ViewRoleDialog({required this.user, this.cachedPermissions});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: _ViewRoleContent(user: user, cachedPermissions: cachedPermissions),
-    );
-  }
-}
-
-class _ViewRoleContent extends StatefulWidget {
-  final UserModel user;
-  final Map<String, List<String>>? cachedPermissions;
-
-  const _ViewRoleContent({required this.user, this.cachedPermissions});
-
-  @override
-  State<_ViewRoleContent> createState() => _ViewRoleContentState();
-}
-
-class _ViewRoleContentState extends State<_ViewRoleContent>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _fade;
-  late Animation<double> _scale;
-
-  // FIX: Priority order:
-  // 1. Parent se aaya cached permissions (user ne cross kiya tha pehle)
-  // 2. UserModel mein stored permissions (API se aayi thi)
-  // 3. Hardcoded fallback (sirf tab jab koi bhi nahi)
-  Map<String, List<String>> get _permissions {
-    if (widget.cachedPermissions != null && widget.cachedPermissions!.isNotEmpty) {
-      return widget.cachedPermissions!;
-    }
-    if (widget.user.permissions.isNotEmpty) {
-      return widget.user.permissions;
-    }
-    return _defaultPermissions();
-  }
-
-  int get _totalPermissions =>
-      _permissions.values.fold(0, (sum, list) => sum + list.length);
-
-  String _toLabel(String key) {
-    final spaced = key.replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(0)}');
-    return spaced[0].toUpperCase() + spaced.substring(1);
-  }
-
-  String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
-    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scale = Tween<double>(begin: 0.93, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _close() {
-    _ctrl.reverse().then((_) { if (mounted) Navigator.pop(context); });
-  }
+// ─── View Field ───────────────────────────────────────────────────────────────
+class _ViewField extends StatelessWidget {
+  final String label, value;
+  final IconData icon;
+  final bool multiline;
+  const _ViewField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.multiline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final perms = _permissions;
-    final total = _totalPermissions;
-
-    return FadeTransition(
-      opacity: _fade,
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 40, offset: const Offset(0, 12)),
-            ],
-          ),
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildReadonlyField(label: "Role Name *", value: widget.user.role),
-                      const SizedBox(height: 14),
-                      _buildReadonlyField(
-                        label: "Description",
-                        value: widget.user.roleDescription.isEmpty
-                            ? "Full system access with all permissions"
-                            : widget.user.roleDescription,
-                        minLines: 3,
-                      ),
-                      const SizedBox(height: 20),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _C.surface,
-                          border: Border.all(color: _C.border, width: 1.2),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                              child: Text("Permissions",
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _C.ink, letterSpacing: -0.2)),
-                            ),
-                            const SizedBox(height: 12),
-                            const Divider(height: 1, thickness: 1, color: _C.border),
-                            const SizedBox(height: 12),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text("Current Permissions ($total)",
-                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: _C.ink)),
-                            ),
-                            const SizedBox(height: 12),
-                            ...perms.entries.map((entry) {
-                              final label = _toLabel(entry.key);
-                              final caps  = entry.value.map(_cap).join(', ');
-                              return _buildPermissionRow(label: label, actions: caps);
-                            }),
-                            const SizedBox(height: 4),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-              _buildFooter(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(bottom: BorderSide(color: _C.border, width: 1)),
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: AppColors.border, width: 0.7),
       ),
       child: Row(
+        crossAxisAlignment:
+            multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.visibility_outlined, size: 20, color: _C.ink),
+          Icon(icon, color: AppColors.accent, size: 15),
           const SizedBox(width: 10),
-          const Text("View Role",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _C.ink, letterSpacing: -0.3)),
-          const Spacer(),
-          GestureDetector(
-            onTap: _close,
-            child: Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                color: _C.bg, borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _C.border, width: 1.1),
-              ),
-              child: const Icon(Icons.close_rounded, size: 17, color: _C.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReadonlyField({required String label, required String value, int minLines = 1}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
-        borderRadius: BorderRadius.circular(10),
-        border: Border(bottom: BorderSide(color: _C.border, width: 1.5)),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: _C.muted)),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: _C.ink)),
-          if (minLines > 1) const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPermissionRow({required String label, required String actions}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: _C.ink)),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(height: 3),
-              Text(actions, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: _C.muted)),
-            ],
-          ),
-        ),
-        Divider(height: 1, thickness: 1, color: _C.border.withOpacity(0.7)),
-      ],
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-        border: Border(top: BorderSide(color: _C.border, width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          GestureDetector(
-            onTap: _close,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 11),
-              decoration: BoxDecoration(
-                color: _C.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.3),
-              ),
-              child: const Text("CLOSE",
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _C.blueText, letterSpacing: 0.4)),
-            ),
+              Text(value,
+                  style: const TextStyle(
+                      color: AppColors.textBody,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4)),
+            ]),
           ),
         ],
       ),
@@ -1395,674 +1273,17 @@ class _ViewRoleContentState extends State<_ViewRoleContent>
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Role Model ───────────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class RoleModel {
-  final int id;
-  final String name;
-  final String description;
-  final Map<String, List<String>> permissions;
-
-  const RoleModel({required this.id, required this.name, required this.description, required this.permissions});
-
-  factory RoleModel.fromJson(Map<String, dynamic> json) {
-    final Map<String, List<String>> perms = {};
-    final dynamic rawPerms = json['permissions'];
-    if (rawPerms is Map) {
-      rawPerms.forEach((key, val) {
-        if (val is List) perms[key.toString()] = val.map((e) => e.toString()).toList();
-      });
-    } else if (rawPerms is List) {
-      for (final p in rawPerms) {
-        if (p is Map) {
-          final feature = p['feature']?.toString() ?? p['name']?.toString() ?? p['module']?.toString() ?? '';
-          final actions = p['actions'];
-          if (feature.isNotEmpty && actions is List) {
-            perms[feature] = actions.map((e) => e.toString()).toList();
-          }
-        }
-      }
-    }
-    return RoleModel(
-      id: json['id'] ?? json['roleId'] ?? 0,
-      name: json['name'] ?? json['roleName'] ?? '',
-      description: json['description'] ?? '',
-      permissions: perms,
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Edit Role Dialog ─────────────────────────────────────────────────────────
-// FIX: initialPermissions parameter added + returns current permissions on close
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _EditRoleDialog extends StatelessWidget {
-  final UserModel user;
-  final String token;
-  // FIX: Previously saved permissions (agar user ne pehle cross kiya tha)
-  final Map<String, List<String>>? initialPermissions;
-
-  const _EditRoleDialog({
-    required this.user,
-    required this.token,
-    this.initialPermissions,
-  });
+// ─── Form Label ───────────────────────────────────────────────────────────────
+class _FormLabel extends StatelessWidget {
+  final String label;
+  const _FormLabel({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: _EditRoleContent(
-        user: user,
-        token: token,
-        initialPermissions: initialPermissions,
-      ),
-    );
-  }
-}
-
-class _EditRoleContent extends StatefulWidget {
-  final UserModel user;
-  final String token;
-  final Map<String, List<String>>? initialPermissions;
-
-  const _EditRoleContent({
-    required this.user,
-    required this.token,
-    this.initialPermissions,
-  });
-
-  @override
-  State<_EditRoleContent> createState() => _EditRoleContentState();
-}
-
-class _EditRoleContentState extends State<_EditRoleContent>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _fade;
-  late Animation<double> _scale;
-
-  late TextEditingController _nameCtrl;
-  late TextEditingController _descCtrl;
-
-  List<RoleModel> _availableRoles = [];
-  bool _rolesLoading = true;
-  String? _rolesError;
-
-  String? _selectedFeature;
-  List<String> _selectedActions = [];
-
-  late Map<String, List<String>> _currentPermissions;
-
-  bool _isSaving = false;
-
-  static const _allFeatures = [
-    'vendorAssignment', 'user', 'role', 'vendorRequests', 'shopboardRequest',
-    'requestPriceAdjustment', 'requestTypes', 'statistics',
-    'budgetManagement', 'payments', 'paymentBatch', 'smtpSettings',
-  ];
-
-  static const _allActions = ['read', 'create', 'update', 'delete'];
-
-  String _toLabel(String key) {
-    final spaced = key.replaceAllMapped(RegExp(r'([A-Z])'), (m) => ' ${m.group(0)}');
-    return spaced[0].toUpperCase() + spaced.substring(1);
-  }
-
-  String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
-  int get _totalPermissions =>
-      _currentPermissions.values.fold(0, (s, l) => s + l.length);
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
-    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scale = Tween<double>(begin: 0.93, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
-    _ctrl.forward();
-
-    _nameCtrl = TextEditingController(text: widget.user.role);
-    _descCtrl = TextEditingController(
-        text: widget.user.roleDescription.isEmpty
-            ? 'Full system access with all permissions'
-            : widget.user.roleDescription);
-
-    // FIX: Permission priority:
-    // 1. initialPermissions (cached from previous session — most important)
-    // 2. user.permissions (API se aayi)
-    // 3. defaultPermissions (sirf last resort)
-    if (widget.initialPermissions != null && widget.initialPermissions!.isNotEmpty) {
-      _currentPermissions = Map<String, List<String>>.from(
-          widget.initialPermissions!.map((k, v) => MapEntry(k, List<String>.from(v))));
-    } else if (widget.user.permissions.isNotEmpty) {
-      _currentPermissions = Map<String, List<String>>.from(
-          widget.user.permissions.map((k, v) => MapEntry(k, List<String>.from(v))));
-    } else {
-      _currentPermissions = _defaultPermissions();
-    }
-
-    _fetchRoles();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetchRoles() async {
-    final urls = [
-      'http://125.209.66.147:5001/api/roles/with-permissions?page=0&size=100',
-      'http://125.209.66.147:5001/api/roles/with-permissions?page=1&size=100',
-      'http://125.209.66.147:5001/api/roles/with-permissions',
-      'http://125.209.66.147:5001/api/roles',
-    ];
-    final headers = {
-      'Authorization': 'Bearer ${widget.token}',
-      'Content-Type': 'application/json',
-    };
-    for (final urlStr in urls) {
-      try {
-        final res = await http
-            .get(Uri.parse(urlStr), headers: headers)
-            .timeout(const Duration(seconds: 8));
-        if (res.statusCode == 304 || res.statusCode == 204 || res.body.trim().isEmpty) continue;
-        if (res.statusCode == 200) {
-          final decoded = jsonDecode(res.body);
-          List<dynamic> raw = [];
-          if (decoded is List) {
-            raw = decoded;
-          } else if (decoded is Map) {
-            for (final key in ['data', 'roles', 'content', 'items']) {
-              if (decoded[key] is List) { raw = decoded[key] as List<dynamic>; break; }
-            }
-          }
-          if (raw.isEmpty) continue;
-          final roles = raw.map((e) => RoleModel.fromJson(e as Map<String, dynamic>)).toList();
-          if (mounted) {
-            setState(() {
-              _availableRoles = roles;
-              _rolesLoading = false;
-            });
-          }
-          return;
-        }
-      } catch (_) { continue; }
-    }
-    if (mounted) {
-      setState(() {
-        _rolesLoading = false;
-        _rolesError = 'Could not load roles';
-      });
-    }
-  }
-
-  void _addPermission() {
-    if (_selectedFeature == null || _selectedActions.isEmpty) return;
-    setState(() {
-      final existing = List<String>.from(_currentPermissions[_selectedFeature!] ?? []);
-      for (final a in _selectedActions) {
-        if (!existing.contains(a)) existing.add(a);
-      }
-      _currentPermissions[_selectedFeature!] = existing;
-      _selectedFeature = null;
-      _selectedActions = [];
-    });
-  }
-
-  void _removeFeature(String key) {
-    setState(() => _currentPermissions.remove(key));
-  }
-
-  int _resolvedRoleId() {
-    if (widget.user.roleId != 0) return widget.user.roleId;
-    if (_availableRoles.isNotEmpty) {
-      try {
-        final match = _availableRoles.firstWhere(
-          (r) => r.name.toLowerCase().trim() == widget.user.role.toLowerCase().trim(),
-        );
-        if (match.id != 0) return match.id;
-      } catch (_) {}
-      if (_availableRoles.first.id != 0) return _availableRoles.first.id;
-    }
-    return widget.user.id;
-  }
-
-  Future<void> _save() async {
-    if (_nameCtrl.text.trim().isEmpty) {
-      _showSnack('Role name is required');
-      return;
-    }
-    final roleId = _resolvedRoleId();
-    setState(() => _isSaving = true);
-    final body = jsonEncode({
-      'name': _nameCtrl.text.trim(),
-      'description': _descCtrl.text.trim(),
-      'permissions': _currentPermissions,
-    });
-    try {
-      final res = await http
-          .put(
-            Uri.parse('http://125.209.66.147:5001/api/roles/$roleId'),
-            headers: {
-              'Authorization': 'Bearer ${widget.token}',
-              'Content-Type': 'application/json',
-            },
-            body: body,
-          )
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200 || res.statusCode == 204) {
-        // FIX: Successful save par bhi current permissions return karo (cache update ke liye)
-        if (mounted) Navigator.pop(context, Map<String, List<String>>.from(_currentPermissions));
-      } else {
-        _showSnack('Update failed (${res.statusCode}) — role ID: $roleId');
-        setState(() => _isSaving = false);
-      }
-    } catch (e) {
-      _showSnack('Network error: $e');
-      setState(() => _isSaving = false);
-    }
-  }
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  // FIX: Close (cancel/cross) par bhi current permissions return karo
-  // Taake parent cache update kar sake aur dobara kholne par same state mile
-  void _close() {
-    _ctrl.reverse().then((_) {
-      if (mounted) {
-        // Current permissions return karo — chahe user ne save kiya ya nahi
-        Navigator.pop(context, Map<String, List<String>>.from(_currentPermissions));
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
-          decoration: BoxDecoration(
-            color: _C.surface,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 40, offset: const Offset(0, 12)),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeader(),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTextField(controller: _nameCtrl, label: 'Role Name *', hint: 'Enter role name'),
-                      const SizedBox(height: 14),
-                      _buildTextField(
-                        controller: _descCtrl, label: 'Description',
-                        hint: 'Enter description', minLines: 3, maxLines: 5,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildPermissionsCard(),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-              _buildFooter(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(bottom: BorderSide(color: _C.border, width: 1)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.edit_outlined, size: 20, color: _C.ink),
-          const SizedBox(width: 10),
-          const Text('Edit Role',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _C.ink, letterSpacing: -0.3)),
-          const Spacer(),
-          GestureDetector(
-            onTap: _close,
-            child: Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                color: _C.bg, borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _C.border, width: 1.1),
-              ),
-              child: const Icon(Icons.close_rounded, size: 17, color: _C.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    int minLines = 1,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      minLines: minLines,
-      maxLines: maxLines,
-      style: const TextStyle(fontSize: 14, color: _C.ink),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        labelStyle: const TextStyle(fontSize: 12, color: _C.muted),
-        hintStyle: const TextStyle(fontSize: 13, color: _C.muted),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: _C.border, width: 1.2),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _C.blueText, width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPermissionsCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _C.surface,
-        border: Border.all(color: _C.border, width: 1.2),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Text('Permissions',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _C.ink)),
-          ),
-          const Divider(height: 1, thickness: 1, color: _C.border),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: _buildAddRow(),
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, thickness: 1, color: _C.border),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Current Permissions ($_totalPermissions)',
-                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: _C.ink)),
-          ),
-          const SizedBox(height: 10),
-          if (_currentPermissions.isEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Text('No permissions added yet.',
-                  style: TextStyle(fontSize: 13, color: _C.muted)),
-            )
-          else
-            ..._currentPermissions.entries.map((e) => _buildPermissionRow(e.key, e.value)),
-          const SizedBox(height: 6),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddRow() {
-    final features = _rolesLoading
-        ? _allFeatures
-        : (_availableRoles.isNotEmpty
-            ? _availableRoles.expand((r) => r.permissions.keys).toSet().toList()
-            : _allFeatures);
-
-    List<String> availableActions = _allActions;
-    if (_selectedFeature != null && _availableRoles.isNotEmpty) {
-      for (final r in _availableRoles) {
-        if (r.permissions.containsKey(_selectedFeature)) {
-          availableActions = r.permissions[_selectedFeature]!;
-          break;
-        }
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Container(
-                height: 46,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _C.border, width: 1.2),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedFeature,
-                    hint: const Text('Feature *', style: TextStyle(fontSize: 13, color: _C.muted)),
-                    isExpanded: true,
-                    icon: const Icon(Icons.unfold_more_rounded, size: 18, color: _C.muted),
-                    style: const TextStyle(fontSize: 13, color: _C.ink, fontWeight: FontWeight.w500),
-                    borderRadius: BorderRadius.circular(10),
-                    items: features
-                        .map((f) => DropdownMenuItem(value: f, child: Text(_toLabel(f))))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _selectedFeature = v;
-                      _selectedActions = [];
-                    }),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: (_selectedFeature != null && _selectedActions.isNotEmpty) ? _addPermission : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 46,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                  color: (_selectedFeature != null && _selectedActions.isNotEmpty)
-                      ? _C.blueText
-                      : const Color(0xFFD0D0D0),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_rounded, size: 16,
-                        color: (_selectedFeature != null && _selectedActions.isNotEmpty)
-                            ? Colors.white : _C.muted),
-                    const SizedBox(width: 5),
-                    Text('ADD',
-                        style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5,
-                          color: (_selectedFeature != null && _selectedActions.isNotEmpty)
-                              ? Colors.white : _C.muted,
-                        )),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (_selectedFeature != null) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8, runSpacing: 6,
-            children: availableActions.map((action) {
-              final checked = _selectedActions.contains(action);
-              return GestureDetector(
-                onTap: () => setState(() {
-                  checked ? _selectedActions.remove(action) : _selectedActions.add(action);
-                }),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: checked ? _C.blueText.withOpacity(0.10) : const Color(0xFFF0F0F0),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: checked ? _C.blueText.withOpacity(0.5) : _C.border, width: 1.2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                        size: 15, color: checked ? _C.blueText : _C.muted,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(_cap(action),
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600,
-                              color: checked ? _C.blueText : _C.muted)),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 4),
-          const Text('Select Permissions *',
-              style: TextStyle(fontSize: 11.5, color: _C.muted, fontWeight: FontWeight.w500)),
-        ] else ...[
-          const SizedBox(height: 8),
-          const Text('Select Permissions *\nPlease select a feature first',
-              style: TextStyle(fontSize: 12, color: _C.muted, height: 1.5)),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildPermissionRow(String key, List<String> actions) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_toLabel(key),
-                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: _C.ink)),
-                    const SizedBox(height: 3),
-                    Text(actions.map(_cap).join(', '),
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, color: _C.muted)),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _removeFeature(key),
-                child: Container(
-                  width: 30, height: 30,
-                  decoration: BoxDecoration(
-                    color: _C.primary.withOpacity(0.07),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.close_rounded, size: 16, color: _C.primary),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Divider(height: 1, thickness: 1, color: _C.border.withOpacity(0.7)),
-      ],
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-        border: Border(top: BorderSide(color: _C.border, width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          GestureDetector(
-            onTap: _close,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
-              decoration: BoxDecoration(
-                color: _C.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.3),
-              ),
-              child: const Text('CANCEL',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                      color: _C.blueText, letterSpacing: 0.4)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _isSaving ? null : _save,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 11),
-              decoration: BoxDecoration(
-                color: _isSaving ? _C.blueText.withOpacity(0.5) : _C.blueText,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(color: _C.blueText.withOpacity(0.28), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text('UPDATE',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
-                          color: Colors.white, letterSpacing: 0.5)),
-            ),
-          ),
-        ],
-      ),
-    );
+    return Text(label,
+        style: const TextStyle(
+            color: AppColors.textHead,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700));
   }
 }
