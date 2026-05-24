@@ -2,18 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// ─── Design Tokens ───────────────────────────────────────────────────────────
+// ─── Design Tokens (mirrors Dashboard AppColors) ──────────────────────────────
 class _C {
-  static const bg = Color(0xFFF8F4F0);         // warm parchment canvas
-  static const surface = Color(0xFFFFFFFF);
-  static const primary = Color(0xFFE60023);     // Pinterest red
-  static const primaryDark = Color(0xFFAD081B);
-  static const ink = Color(0xFF111111);
-  static const muted = Color(0xFF767676);
-  static const border = Color(0xFFE0DAD4);
-  static const chip = Color(0xFFFFF0F1);        // soft red tint
-  static const activeGreen = Color(0xFF00A699);
-  static const switchTrackOff = Color(0xFFDDD8D3);
+  static const bg         = Color(0xFFF5F7FA);
+  static const surface    = Color(0xFFFFFFFF);
+  static const surfaceAlt = Color(0xFFF0F4F9);
+
+  static const primary    = Color(0xFF1A2B4A);
+  static const primaryMid = Color(0xFF243B5E);
+
+  static const accent      = Color(0xFF3B7DD8);
+  static const accentLight = Color(0xFFEBF3FF);
+
+  static const red          = Color(0xFFE53935);
+  static const redLight     = Color(0xFFFFEBEE);
+
+  static const success      = Color(0xFF26A69A);
+  static const successLight = Color(0xFFE0F2F1);
+
+  static const warning      = Color(0xFFF57F17);
+  static const warningLight = Color(0xFFFFF8E1);
+
+  static const purple      = Color(0xFF5C35B5);
+  static const purpleLight = Color(0xFFEFEBFA);
+
+  static const textHead  = Color(0xFF1A2B4A);
+  static const textBody  = Color(0xFF3A4A5C);
+  static const textMuted = Color(0xFF8A9BB5);
+
+  static const border  = Color(0xFFE2E8F0);
+  static const divider = Color(0xFFEDF2F7);
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -29,17 +47,17 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController usernameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController emailController    = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   String? selectedRole;
-  bool isActive = true;
-  bool isPasswordVisible = false;
-  bool _isLoading = false;
+  bool isActive           = true;
+  bool isPasswordVisible  = false;
+  bool _isLoading         = false;
 
   late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+  late Animation<double>   _fadeAnim;
+  late Animation<Offset>   _slideAnim;
 
   final List<String> roles = [
     'Super Admin',
@@ -62,7 +80,8 @@ class _CreateUserScreenState extends State<CreateUserScreen>
         CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
             begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+        .animate(
+            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
   }
 
@@ -103,10 +122,10 @@ class _CreateUserScreenState extends State<CreateUserScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text("Failed to create user"),
-            backgroundColor: _C.primaryDark,
+            backgroundColor: _C.red,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -115,10 +134,10 @@ class _CreateUserScreenState extends State<CreateUserScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Something went wrong"),
-          backgroundColor: _C.primaryDark,
+          backgroundColor: _C.red,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
         ),
       );
     } finally {
@@ -126,41 +145,46 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     }
   }
 
-  // ── shared input decoration ────────────────────────────────────────────────
-  InputDecoration _dec(String label, {Widget? suffix, IconData? prefixIcon}) =>
+  // ── shared input decoration — Navy theme ──────────────────────────────────
+  InputDecoration _dec(String label,
+          {Widget? suffix, IconData? prefixIcon}) =>
       InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(
-            color: _C.muted, fontSize: 13.5, fontWeight: FontWeight.w500),
+            color: _C.textMuted,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500),
         floatingLabelStyle: const TextStyle(
-            color: _C.primary, fontSize: 12, fontWeight: FontWeight.w700),
+            color: _C.accent,
+            fontSize: 12,
+            fontWeight: FontWeight.w700),
         filled: true,
         fillColor: _C.bg,
         suffixIcon: suffix,
         prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, size: 18, color: _C.muted)
+            ? Icon(prefixIcon, size: 18, color: _C.textMuted)
             : null,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.border, width: 1.2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _C.border, width: 0.8),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.border, width: 1.2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _C.border, width: 0.8),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.primary, width: 1.8),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _C.accent, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.primaryDark, width: 1.4),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _C.red, width: 1.2),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.primaryDark, width: 1.8),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _C.red, width: 1.6),
         ),
       );
 
@@ -169,7 +193,8 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     return Dialog(
       backgroundColor: _C.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       child: FadeTransition(
         opacity: _fadeAnim,
@@ -178,22 +203,18 @@ class _CreateUserScreenState extends State<CreateUserScreen>
           child: Container(
             decoration: BoxDecoration(
               color: _C.surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _C.border, width: 0.7),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.08),
-                  blurRadius: 40,
-                  offset: const Offset(0, 16),
-                ),
-                BoxShadow(
-                  color: _C.primary.withOpacity(0.04),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(22),
               child: SingleChildScrollView(
                 child: Form(
                   key: _formKey,
@@ -201,186 +222,117 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header ─────────────────────────────────────────
+
+                      // ── Header — matches Dashboard TopBar style ─────────
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 22,
-                                    decoration: BoxDecoration(
-                                      color: _C.primary,
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    "Create User",
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: _C.ink,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              const Padding(
-                                padding: EdgeInsets.only(left: 16),
-                                child: Text(
-                                  "Fill in the details to add a new member",
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: _C.muted,
-                                      fontWeight: FontWeight.w400),
-                                ),
-                              ),
-                            ],
+                          // Navy accent icon — same as TopBar logo circle
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: _C.primary,
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                  color: _C.primaryMid.withOpacity(0.35),
+                                  width: 0.8),
+                            ),
+                            child: const Icon(
+                                Icons.person_add_rounded,
+                                color: Colors.white,
+                                size: 19),
                           ),
-                          _CloseButton(onTap: () => Navigator.pop(context)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'Create User',
+                                  style: TextStyle(
+                                      color: _C.textHead,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.1),
+                                ),
+                                SizedBox(height: 1),
+                                Text(
+                                  'Add a new member to the system',
+                                  style: TextStyle(
+                                      color: _C.textMuted, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Close button — same surfaceAlt style as _IconBtn
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _C.surfaceAlt,
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(
+                                    color: _C.border, width: 0.7),
+                              ),
+                              child: const Icon(Icons.close_rounded,
+                                  color: _C.textMuted, size: 17),
+                            ),
+                          ),
                         ],
                       ),
 
-                      const SizedBox(height: 24),
+                      // ── Divider — same as Dashboard card dividers ────────
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Divider(
+                            color: _C.divider, thickness: 0.8, height: 0),
+                      ),
 
-                      // ── Username ────────────────────────────────────────
+                      // ── Section label — matches _DSection style ──────────
+                      const _SectionLabel('Account Details'),
+                      const SizedBox(height: 10),
+
+                      // ── Username ─────────────────────────────────────────
                       TextFormField(
                         controller: usernameController,
                         style: const TextStyle(
-                            color: _C.ink,
-                            fontSize: 14,
+                            color: _C.textHead,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600),
-                        decoration: _dec("Username *",
+                        decoration: _dec('Username *',
                             prefixIcon: Icons.person_outline_rounded),
                         validator: (v) =>
-                            v!.isEmpty ? "Please enter username" : null,
+                            v!.isEmpty ? 'Please enter username' : null,
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
-                      // ── Email ───────────────────────────────────────────
+                      // ── Email ─────────────────────────────────────────────
                       TextFormField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(
-                            color: _C.ink,
-                            fontSize: 14,
+                            color: _C.textHead,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600),
-                        decoration: _dec("Email",
+                        decoration: _dec('Email',
                             prefixIcon: Icons.mail_outline_rounded),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
-                      // ── Role Dropdown ───────────────────────────────────
-                      DropdownButtonFormField<String>(
-                        value: selectedRole,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: _C.muted),
-                        dropdownColor: _C.surface,
-                        style: const TextStyle(
-                            color: _C.ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600),
-                        decoration: _dec("Role *",
-                            prefixIcon: Icons.shield_outlined),
-                        items: roles
-                            .map((role) => DropdownMenuItem(
-                                  value: role,
-                                  child: Text(role),
-                                ))
-                            .toList(),
-                        onChanged: (v) => setState(() => selectedRole = v),
-                        validator: (v) =>
-                            v == null ? "Please select role" : null,
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // ── Active Switch ───────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? _C.activeGreen.withOpacity(0.06)
-                              : _C.bg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isActive
-                                ? _C.activeGreen.withOpacity(0.25)
-                                : _C.border,
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isActive
-                                      ? Icons.check_circle_outline_rounded
-                                      : Icons.radio_button_unchecked_rounded,
-                                  size: 18,
-                                  color: isActive ? _C.activeGreen : _C.muted,
-                                ),
-                                const SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Active",
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: _C.ink),
-                                    ),
-                                    Text(
-                                      isActive
-                                          ? "User can log in"
-                                          : "Access suspended",
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: isActive
-                                              ? _C.activeGreen
-                                              : _C.muted),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Switch(
-                              value: isActive,
-                              onChanged: (v) => setState(() => isActive = v),
-                              activeColor: _C.activeGreen,
-                              activeTrackColor:
-                                  _C.activeGreen.withOpacity(0.22),
-                              inactiveThumbColor: Colors.white,
-                              inactiveTrackColor: _C.switchTrackOff,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // ── Password ────────────────────────────────────────
+                      // ── Password ──────────────────────────────────────────
                       TextFormField(
                         controller: passwordController,
                         obscureText: !isPasswordVisible,
                         style: const TextStyle(
-                            color: _C.ink,
-                            fontSize: 14,
+                            color: _C.textHead,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w600),
                         decoration: _dec(
-                          "Password *",
+                          'Password *',
                           prefixIcon: Icons.lock_outline_rounded,
                           suffix: IconButton(
                             icon: Icon(
@@ -388,93 +340,220 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                               size: 18,
-                              color: _C.muted,
+                              color: _C.textMuted,
                             ),
-                            onPressed: () => setState(
-                                () => isPasswordVisible = !isPasswordVisible),
+                            onPressed: () => setState(() =>
+                                isPasswordVisible = !isPasswordVisible),
                           ),
                         ),
                         validator: (v) =>
-                            v!.isEmpty ? "Please enter password" : null,
+                            v!.isEmpty ? 'Please enter password' : null,
                       ),
 
-                      const SizedBox(height: 26),
+                      const SizedBox(height: 18),
 
-                      // ── Action Buttons ──────────────────────────────────
+                      // ── Section label ─────────────────────────────────────
+                      const _SectionLabel('Permissions'),
+                      const SizedBox(height: 10),
+
+                      // ── Role Dropdown ─────────────────────────────────────
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: _C.textMuted),
+                        dropdownColor: _C.surface,
+                        style: const TextStyle(
+                            color: _C.textHead,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600),
+                        decoration: _dec('Role *',
+                            prefixIcon:
+                                Icons.admin_panel_settings_rounded),
+                        items: roles
+                            .map((role) => DropdownMenuItem(
+                                  value: role,
+                                  child: Text(role),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => selectedRole = v),
+                        validator: (v) =>
+                            v == null ? 'Please select role' : null,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Active Switch — matches _StatCard / _BudgetCard style
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? _C.accentLight
+                              : _C.surfaceAlt,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isActive
+                                ? _C.accent.withOpacity(0.30)
+                                : _C.border,
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? _C.accent.withOpacity(0.12)
+                                    : _C.border.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                isActive
+                                    ? Icons.check_circle_outline_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                size: 17,
+                                color: isActive
+                                    ? _C.accent
+                                    : _C.textMuted,
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Active Status',
+                                    style: TextStyle(
+                                        color: _C.textHead,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    isActive
+                                        ? 'User can log in'
+                                        : 'Access suspended',
+                                    style: TextStyle(
+                                        color: isActive
+                                            ? _C.accent
+                                            : _C.textMuted,
+                                        fontSize: 10.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: isActive,
+                              onChanged: (v) =>
+                                  setState(() => isActive = v),
+                              activeColor: _C.accent,
+                              activeTrackColor:
+                                  _C.accent.withOpacity(0.20),
+                              inactiveThumbColor: Colors.white,
+                              inactiveTrackColor: _C.border,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ── Divider ───────────────────────────────────────────
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Divider(
+                            color: _C.divider, thickness: 0.8, height: 0),
+                      ),
+
+                      // ── Action Buttons ────────────────────────────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Cancel
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              foregroundColor: _C.muted,
+
+                          // Cancel — same surfaceAlt style
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(
-                                    color: _C.border, width: 1.2),
+                                  horizontal: 18, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _C.surfaceAlt,
+                                borderRadius: BorderRadius.circular(11),
+                                border: Border.all(
+                                    color: _C.border, width: 0.8),
                               ),
-                            ),
-                            child: const Text(
-                              "CANCEL",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12.5,
-                                  letterSpacing: 0.6),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                    color: _C.textBody,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ),
 
                           const SizedBox(width: 10),
 
-                          // Create
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _C.primary.withOpacity(0.32),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : () {
-                                      if (_formKey.currentState!.validate()) {
-                                        createUser();
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _C.primary,
-                                foregroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    _C.primary.withOpacity(0.55),
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
+                          // Create — Navy primary button
+                          GestureDetector(
+                            onTap: _isLoading
+                                ? null
+                                : () {
+                                    if (_formKey.currentState!
+                                        .validate()) {
+                                      createUser();
+                                    }
+                                  },
+                            child: AnimatedContainer(
+                              duration:
+                                  const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 22, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _isLoading
+                                    ? _C.primary.withOpacity(0.55)
+                                    : _C.primary,
+                                borderRadius: BorderRadius.circular(11),
+                                boxShadow: _isLoading
+                                    ? []
+                                    : [
+                                        BoxShadow(
+                                          color: _C.primary
+                                              .withOpacity(0.30),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                               ),
                               child: _isLoading
                                   ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
+                                      width: 15,
+                                      height: 15,
                                       child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
+                                          color: Colors.white,
+                                          strokeWidth: 2),
                                     )
-                                  : const Text(
-                                      "CREATE",
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 12.5,
-                                          letterSpacing: 0.8),
+                                  : const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                            Icons.person_add_rounded,
+                                            color: Colors.white,
+                                            size: 15),
+                                        SizedBox(width: 7),
+                                        Text(
+                                          'Create User',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight:
+                                                  FontWeight.w700,
+                                              letterSpacing: 0.2),
+                                        ),
+                                      ],
                                     ),
                             ),
                           ),
@@ -492,41 +571,20 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   }
 }
 
-// ── Close Button Widget ───────────────────────────────────────────────────────
-class _CloseButton extends StatefulWidget {
-  final VoidCallback onTap;
-  const _CloseButton({required this.onTap});
-
-  @override
-  State<_CloseButton> createState() => _CloseButtonState();
-}
-
-class _CloseButtonState extends State<_CloseButton> {
-  bool _hovered = false;
+// ─── Section Label — mirrors _DSection from Dashboard ────────────────────────
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: _hovered ? _C.chip : _C.bg,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _C.border, width: 1.1),
-          ),
-          child: Icon(
-            Icons.close_rounded,
-            size: 18,
-            color: _hovered ? _C.primary : _C.muted,
-          ),
-        ),
-      ),
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+          color: _C.textMuted,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1),
     );
   }
 }
