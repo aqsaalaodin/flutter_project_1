@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-// ─── NOTE: AppColors is defined in main.dart. This file reuses it.
-// ─── Ensure this file is imported alongside main.dart in your project.
-
 // ─── Role Model ───────────────────────────────────────────────────────────────
 class RoleModel {
   final int id;
@@ -18,27 +15,27 @@ class RoleModel {
   });
 }
 
-// ─── Colour Palette (mirrors main.dart AppColors exactly) ────────────────────
+// ─── Colour Palette ───────────────────────────────────────────────────────────
 class AppColors {
-  static const bg         = Color(0xFFF5F7FA);
-  static const surface    = Color(0xFFFFFFFF);
-  static const surfaceAlt = Color(0xFFF0F4F9);
-  static const primary    = Color(0xFF1A2B4A);
-  static const primaryMid = Color(0xFF243B5E);
-  static const accent     = Color(0xFF3B7DD8);
-  static const accentLight= Color(0xFFEBF3FF);
-  static const red        = Color(0xFFE53935);
-  static const redLight   = Color(0xFFFFEBEE);
-  static const warning    = Color(0xFFF57F17);
-  static const warningLight=Color(0xFFFFF8E1);
-  static const success    = Color(0xFF26A69A);
-  static const purple     = Color(0xFF5C35B5);
-  static const purpleLight= Color(0xFFEFEBFA);
-  static const textHead   = Color(0xFF1A2B4A);
-  static const textBody   = Color(0xFF3A4A5C);
-  static const textMuted  = Color(0xFF8A9BB5);
-  static const border     = Color(0xFFE2E8F0);
-  static const divider    = Color(0xFFEDF2F7);
+  static const bg          = Color(0xFFF5F7FA);
+  static const surface     = Color(0xFFFFFFFF);
+  static const surfaceAlt  = Color(0xFFF0F4F9);
+  static const primary     = Color(0xFF1A2B4A);
+  static const primaryMid  = Color(0xFF243B5E);
+  static const accent      = Color(0xFF3B7DD8);
+  static const accentLight = Color(0xFFEBF3FF);
+  static const red         = Color(0xFFE53935);
+  static const redLight    = Color(0xFFFFEBEE);
+  static const warning     = Color(0xFFF57F17);
+  static const warningLight= Color(0xFFFFF8E1);
+  static const success     = Color(0xFF26A69A);
+  static const purple      = Color(0xFF5C35B5);
+  static const purpleLight = Color(0xFFEFEBFA);
+  static const textHead    = Color(0xFF1A2B4A);
+  static const textBody    = Color(0xFF3A4A5C);
+  static const textMuted   = Color(0xFF8A9BB5);
+  static const border      = Color(0xFFE2E8F0);
+  static const divider     = Color(0xFFEDF2F7);
 }
 
 // ─── Role Management Screen ───────────────────────────────────────────────────
@@ -58,15 +55,15 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
   int _currentPage = 0;
 
   final List<RoleModel> _allRoles = [
-    RoleModel(id: 1,  roleName: 'Super Admin',         description: 'Full system access and control over all modules',        createdAt: '11/11/2025\n23:45:48'),
-    RoleModel(id: 6,  roleName: 'Marketing Manager',   description: 'This role is for marketing managers with limited access', createdAt: '11/11/2025\n23:57:24'),
-    RoleModel(id: 7,  roleName: 'Auditor',             description: 'This role is for auditor only with read access',          createdAt: '11/11/2025\n23:59:45'),
-    RoleModel(id: 8,  roleName: 'Marketing Executive', description: 'This role is only for marketing executives',              createdAt: '12/11/2025\n00:00:51'),
-    RoleModel(id: 9,  roleName: 'User',                description: 'This is the user role with basic permissions',            createdAt: '12/11/2025\n22:17:05'),
-    RoleModel(id: 10, roleName: 'Area Sales Head',     description: 'This is the role for area sales heads',                  createdAt: '16/11/2025\n21:10:34'),
-    RoleModel(id: 11, roleName: 'Vendor',              description: 'This role is for vendors with limited portal access',     createdAt: '21/11/2025\n01:46:10'),
-    RoleModel(id: 12, roleName: 'Finance',             description: 'This role is reserved for finance department',            createdAt: '22/11/2025\n12:45:12'),
-    RoleModel(id: 13, roleName: 'Test Role',           description: '',                                                        createdAt: '11/05/2026\n21:08:14'),
+    RoleModel(id: 1,  roleName: 'Super Admin',         description: 'Full system access and control over all modules',         createdAt: '11/11/2025\n23:45:48'),
+    RoleModel(id: 6,  roleName: 'Marketing Manager',   description: 'This role is for marketing managers with limited access',  createdAt: '11/11/2025\n23:57:24'),
+    RoleModel(id: 7,  roleName: 'Auditor',             description: 'This role is for auditor only with read access',           createdAt: '11/11/2025\n23:59:45'),
+    RoleModel(id: 8,  roleName: 'Marketing Executive', description: 'This role is only for marketing executives',               createdAt: '12/11/2025\n00:00:51'),
+    RoleModel(id: 9,  roleName: 'User',                description: 'This is the user role with basic permissions',             createdAt: '12/11/2025\n22:17:05'),
+    RoleModel(id: 10, roleName: 'Area Sales Head',     description: 'This is the role for area sales heads',                   createdAt: '16/11/2025\n21:10:34'),
+    RoleModel(id: 11, roleName: 'Vendor',              description: 'This role is for vendors with limited portal access',      createdAt: '21/11/2025\n01:46:10'),
+    RoleModel(id: 12, roleName: 'Finance',             description: 'This role is reserved for finance department',             createdAt: '22/11/2025\n12:45:12'),
+    RoleModel(id: 13, roleName: 'Test Role',           description: '',                                                         createdAt: '11/05/2026\n21:08:14'),
   ];
 
   List<RoleModel> get _pagedRoles {
@@ -95,7 +92,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
   String _trunc(String text, {int max = 18}) =>
       text.isEmpty ? '' : (text.length > max ? '${text.substring(0, max)}...' : text);
 
-  // ─── Snackbar ─────────────────────────────────────────────────────────────
   void _snack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -107,36 +103,11 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     ));
   }
 
-  // ─── Shared Input Decoration ──────────────────────────────────────────────
-  InputDecoration _inputDec({required String hint, required IconData icon}) =>
-      InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-        prefixIcon: Icon(icon, color: AppColors.textMuted, size: 17),
-        filled: true,
-        fillColor: AppColors.surfaceAlt,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppColors.border, width: 0.8)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppColors.border, width: 0.8)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppColors.accent, width: 1.4)),
-        errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppColors.red, width: 1)),
-        focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppColors.red, width: 1.4)),
-      );
-
-  // ─── Delete Dialog ────────────────────────────────────────────────────────
+  // ─── Delete Dialog (unchanged) ────────────────────────────────────────────
   void _showDeleteDialog(RoleModel role) {
     showDialog(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.35),
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -149,8 +120,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
             decoration: BoxDecoration(
                 color: AppColors.redLight,
                 borderRadius: BorderRadius.circular(11)),
-            child: const Icon(Icons.delete_rounded,
-                color: AppColors.red, size: 20),
+            child: const Icon(Icons.delete_rounded, color: AppColors.red, size: 20),
           ),
           const SizedBox(width: 12),
           const Text('Delete Role',
@@ -216,87 +186,27 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     );
   }
 
-  // ─── View Dialog ──────────────────────────────────────────────────────────
+  // ─── View Dialog (updated style) ─────────────────────────────────────────
   void _showViewDialog(RoleModel role) {
     showDialog(
       context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.35),
       builder: (_) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              // ── Header ───────────────────────────────────────────────────
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                      color: AppColors.purpleLight,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.admin_panel_settings_rounded,
-                      color: AppColors.purple, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    const Text('Role Details',
-                        style: TextStyle(
-                            color: AppColors.textHead,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800)),
-                    Text('ID: ${role.id}',
-                        style: const TextStyle(
-                            color: AppColors.textMuted, fontSize: 11)),
-                  ]),
-                ),
-                _CloseBtn(onTap: () => Navigator.pop(context)),
-              ]),
-              const SizedBox(height: 16),
-              const Divider(color: AppColors.divider, height: 1),
-              const SizedBox(height: 16),
-
-              // ── Fields ───────────────────────────────────────────────────
-              _ViewField(label: 'Role ID',     value: '${role.id}',                          icon: Icons.tag_rounded),
-              const SizedBox(height: 10),
-              _ViewField(label: 'Role Name',   value: role.roleName,                         icon: Icons.shield_rounded),
-              const SizedBox(height: 10),
-              _ViewField(label: 'Description', value: role.description.isEmpty ? '—' : role.description, icon: Icons.description_rounded, multiline: true),
-              const SizedBox(height: 10),
-              _ViewField(label: 'Created At',  value: role.createdAt.replaceAll('\n', '  '), icon: Icons.calendar_today_rounded),
-              const SizedBox(height: 22),
-
-              // ── Close Button — navy like the dashboard primary ────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                  child: const Text('Close',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                ),
-              ),
-            ]),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxWidth: 520,
           ),
+          child: _ViewRoleDialogContent(role: role),
         ),
       ),
     );
   }
 
-  // ─── Edit Dialog ──────────────────────────────────────────────────────────
+  // ─── Edit Dialog (updated style) ─────────────────────────────────────────
   void _showEditDialog(RoleModel role) {
     final nameCtrl = TextEditingController(text: role.roleName);
     final descCtrl = TextEditingController(text: role.description);
@@ -304,125 +214,38 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
 
     showDialog(
       context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.35),
       builder: (ctx) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Form(
-              key: formKey,
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                // ── Header ─────────────────────────────────────────────────
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                        color: AppColors.accentLight,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.edit_rounded,
-                        color: AppColors.accent, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      const Text('Edit Role',
-                          style: TextStyle(
-                              color: AppColors.textHead,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
-                      Text('ID: ${role.id}',
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 11)),
-                    ]),
-                  ),
-                  _CloseBtn(onTap: () => Navigator.pop(ctx)),
-                ]),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.divider, height: 1),
-                const SizedBox(height: 16),
-
-                const _FormLabel(label: 'Role Name'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: nameCtrl,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Role name is required'
-                      : null,
-                  decoration: _inputDec(
-                      hint: 'Enter role name', icon: Icons.shield_rounded),
-                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
-                ),
-                const SizedBox(height: 14),
-
-                const _FormLabel(label: 'Description'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: descCtrl,
-                  maxLines: 3,
-                  decoration: _inputDec(
-                      hint: 'Enter role description',
-                      icon: Icons.description_rounded),
-                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
-                ),
-                const SizedBox(height: 22),
-
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textMuted,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11)),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Cancel',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          setState(() {
-                            role.roleName    = nameCtrl.text.trim();
-                            role.description = descCtrl.text.trim();
-                          });
-                          Navigator.pop(ctx);
-                          _snack('Role "${role.roleName}" updated', AppColors.success);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11)),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Save Changes',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+            maxWidth: 520,
+          ),
+          child: _EditRoleDialogContent(
+            role: role,
+            nameCtrl: nameCtrl,
+            descCtrl: descCtrl,
+            formKey: formKey,
+            onSave: () {
+              if (formKey.currentState!.validate()) {
+                setState(() {
+                  role.roleName    = nameCtrl.text.trim();
+                  role.description = descCtrl.text.trim();
+                });
+                Navigator.pop(ctx);
+                _snack('Role "${role.roleName}" updated', AppColors.success);
+              }
+            },
           ),
         ),
       ),
     );
   }
 
-  // ─── Create Dialog ────────────────────────────────────────────────────────
+  // ─── Create Dialog (updated style) ───────────────────────────────────────
   void _showCreateDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -430,140 +253,41 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
 
     showDialog(
       context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.35),
       builder: (ctx) => Dialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Form(
-              key: formKey,
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                // ── Header — gradient icon matching dashboard banner style ──
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1A2B4A), Color(0xFF243B5E)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                            color: AppColors.primary.withOpacity(0.28),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4))
-                      ],
-                    ),
-                    child: const Icon(Icons.add_moderator_rounded,
-                        color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('Create Role',
-                          style: TextStyle(
-                              color: AppColors.textHead,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
-                      Text('Add a new system role',
-                          style: TextStyle(
-                              color: AppColors.textMuted, fontSize: 11)),
-                    ]),
-                  ),
-                  _CloseBtn(onTap: () => Navigator.pop(ctx)),
-                ]),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.divider, height: 1),
-                const SizedBox(height: 16),
-
-                const _FormLabel(label: 'Role Name'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: nameCtrl,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Role name is required'
-                      : null,
-                  decoration: _inputDec(
-                      hint: 'e.g. Sales Manager', icon: Icons.shield_rounded),
-                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
-                ),
-                const SizedBox(height: 14),
-
-                const _FormLabel(label: 'Description'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: descCtrl,
-                  maxLines: 3,
-                  decoration: _inputDec(
-                      hint: 'Describe what this role can do...',
-                      icon: Icons.description_rounded),
-                  style: const TextStyle(color: AppColors.textHead, fontSize: 13.5),
-                ),
-                const SizedBox(height: 22),
-
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textMuted,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11)),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Cancel',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          final newId = _allRoles.isEmpty
-                              ? 1
-                              : _allRoles.map((r) => r.id).reduce((a, b) => a > b ? a : b) + 1;
-                          final now = DateTime.now();
-                          String p(int n) => n.toString().padLeft(2, '0');
-                          final ds =
-                              '${p(now.day)}/${p(now.month)}/${now.year}\n${p(now.hour)}:${p(now.minute)}:${p(now.second)}';
-                          setState(() {
-                            _allRoles.add(RoleModel(
-                              id: newId,
-                              roleName: nameCtrl.text.trim(),
-                              description: descCtrl.text.trim(),
-                              createdAt: ds,
-                            ));
-                          });
-                          Navigator.pop(ctx);
-                          _snack('Role "${nameCtrl.text.trim()}" created', AppColors.success);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11)),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Create Role',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+            maxWidth: 520,
+          ),
+          child: _CreateRoleDialogContent(
+            nameCtrl: nameCtrl,
+            descCtrl: descCtrl,
+            formKey: formKey,
+            onCreate: () {
+              if (formKey.currentState!.validate()) {
+                final newId = _allRoles.isEmpty
+                    ? 1
+                    : _allRoles.map((r) => r.id).reduce((a, b) => a > b ? a : b) + 1;
+                final now = DateTime.now();
+                String p(int n) => n.toString().padLeft(2, '0');
+                final ds =
+                    '${p(now.day)}/${p(now.month)}/${now.year}\n${p(now.hour)}:${p(now.minute)}:${p(now.second)}';
+                setState(() {
+                  _allRoles.add(RoleModel(
+                    id: newId,
+                    roleName: nameCtrl.text.trim(),
+                    description: descCtrl.text.trim(),
+                    createdAt: ds,
+                  ));
+                });
+                Navigator.pop(ctx);
+                _snack('Role "${nameCtrl.text.trim()}" created', AppColors.success);
+              }
+            },
           ),
         ),
       ),
@@ -587,8 +311,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
-                  // ── Page Header — mirrors dashboard section header style ──
                   Row(children: [
                     const Text('Role Management',
                         style: TextStyle(
@@ -596,7 +318,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                             fontSize: 20,
                             fontWeight: FontWeight.w800)),
                     const Spacer(),
-                    // Refresh — matches dashboard icon button style
                     GestureDetector(
                       onTap: () => setState(() {}),
                       child: Container(
@@ -617,7 +338,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // CREATE — accent blue, matches dashboard CTA style
                     GestureDetector(
                       onTap: _showCreateDialog,
                       child: Container(
@@ -648,7 +368,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                   ]),
                   const SizedBox(height: 16),
 
-                  // ── Summary Strip — mimics the _StatsRow cards ────────────
                   Row(children: [
                     _MiniStatCard(
                       icon: Icons.admin_panel_settings_rounded,
@@ -676,7 +395,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                   ]),
                   const SizedBox(height: 16),
 
-                  // ── Table Card ────────────────────────────────────────────
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.surface,
@@ -690,12 +408,9 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                       ],
                     ),
                     child: Column(children: [
-
-                      // ── Table toolbar ──────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                         child: Row(children: [
-                          // Section label
                           const Icon(Icons.table_rows_rounded,
                               color: AppColors.textMuted, size: 15),
                           const SizedBox(width: 6),
@@ -712,8 +427,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                           _ToolbarIconBtn(icon: Icons.download_rounded),
                         ]),
                       ),
-
-                      // ── Column Headers ────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
@@ -724,15 +437,13 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                               bottom: BorderSide(color: AppColors.divider, width: 1)),
                         ),
                         child: const Row(children: [
-                          _ColHeader(text: 'ID',   flex: 1),
-                          _ColHeader(text: 'Name', flex: 3),
-                          _ColHeader(text: 'Desc', flex: 3),
-                          _ColHeader(text: 'Date', flex: 2),
+                          _ColHeader(text: 'ID',      flex: 1),
+                          _ColHeader(text: 'Name',    flex: 3),
+                          _ColHeader(text: 'Desc',    flex: 3),
+                          _ColHeader(text: 'Date',    flex: 2),
                           _ColHeader(text: 'Actions', flex: 3, alignRight: true),
                         ]),
                       ),
-
-                      // ── Data Rows ─────────────────────────────────────────
                       ..._pagedRoles.asMap().entries.map((e) {
                         return _RoleRow(
                           role: e.value,
@@ -743,8 +454,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                           onDelete: () => _showDeleteDialog(e.value),
                         );
                       }),
-
-                      // ── Pagination Footer ─────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
@@ -814,13 +523,11 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     );
   }
 
-  // ─── Top Bar — matches dashboard TopBar exactly ───────────────────────────
   Widget _buildTopBar() {
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(children: [
-        // Back button — same style as dashboard _IconBtn
         GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Container(
@@ -835,10 +542,8 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
           ),
         ),
         const SizedBox(width: 11),
-        // Logo — identical to dashboard diamond circle
         Container(
-          width: 36,
-          height: 36,
+          width: 36, height: 36,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.primary,
@@ -847,7 +552,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
           child: const Icon(Icons.diamond, color: Colors.white, size: 19),
         ),
         const SizedBox(width: 10),
-        // Title stack — same font/size as dashboard top bar
         const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Role Management',
               style: TextStyle(
@@ -859,7 +563,6 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
               style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
         ]),
         const Spacer(),
-        // Purple role count badge — matches dashboard stat badge pattern
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
@@ -881,7 +584,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
   }
 }
 
-// ─── Mini Stat Card (matches _StatCard from dashboard) ───────────────────────
+// ─── Mini Stat Card ───────────────────────────────────────────────────────────
 class _MiniStatCard extends StatelessWidget {
   final IconData icon;
   final String label, value;
@@ -979,7 +682,6 @@ class _RoleRowState extends State<_RoleRow> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // ID
             Expanded(
               flex: 1,
               child: Text('${widget.role.id}',
@@ -988,7 +690,6 @@ class _RoleRowState extends State<_RoleRow> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600)),
             ),
-            // Role Name
             Expanded(
               flex: 3,
               child: Text(
@@ -1001,7 +702,6 @@ class _RoleRowState extends State<_RoleRow> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Description
             Expanded(
               flex: 3,
               child: Tooltip(
@@ -1023,7 +723,6 @@ class _RoleRowState extends State<_RoleRow> {
                 ),
               ),
             ),
-            // Date — single line, newline replaced with space
             Expanded(
               flex: 2,
               child: Text(
@@ -1033,7 +732,6 @@ class _RoleRowState extends State<_RoleRow> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Actions
             Expanded(
               flex: 3,
               child: Row(
@@ -1072,7 +770,6 @@ class _RoleRowState extends State<_RoleRow> {
 
 // ─── Shared Small Widgets ─────────────────────────────────────────────────────
 
-/// Column header — uses AppColors constants
 class _ColHeader extends StatelessWidget {
   final String text;
   final int flex;
@@ -1097,7 +794,6 @@ class _ColHeader extends StatelessWidget {
   }
 }
 
-/// Action icon button — scale animation matching _ActionTile in dashboard
 class _ActionIconBtn extends StatefulWidget {
   final IconData icon;
   final Color color, bg;
@@ -1158,7 +854,6 @@ class _ActionIconBtnState extends State<_ActionIconBtn>
   }
 }
 
-/// Toolbar icon button — matches dashboard _IconBtn surfaceAlt style
 class _ToolbarIconBtn extends StatelessWidget {
   final IconData icon;
   const _ToolbarIconBtn({required this.icon});
@@ -1177,12 +872,12 @@ class _ToolbarIconBtn extends StatelessWidget {
   }
 }
 
-/// Pagination button
 class _PagBtn extends StatelessWidget {
   final IconData icon;
   final bool enabled;
   final VoidCallback onTap;
-  const _PagBtn({required this.icon, required this.enabled, required this.onTap});
+  const _PagBtn(
+      {required this.icon, required this.enabled, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1203,87 +898,899 @@ class _PagBtn extends StatelessWidget {
   }
 }
 
-/// Close button used in dialogs
-class _CloseBtn extends StatelessWidget {
+class _DialogCloseBtn extends StatelessWidget {
   final VoidCallback onTap;
-  const _CloseBtn({required this.onTap});
+  const _DialogCloseBtn({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(6),
+        width: 30, height: 30,
         decoration: BoxDecoration(
             color: AppColors.surfaceAlt,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border, width: 0.7)),
-        child: const Icon(Icons.close, color: AppColors.textMuted, size: 16),
+            border: Border.all(color: AppColors.border, width: 0.5)),
+        child: const Icon(Icons.close_rounded,
+            color: AppColors.textMuted, size: 16),
       ),
     );
   }
 }
 
-// ─── View Field ───────────────────────────────────────────────────────────────
-class _ViewField extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── View Role Dialog ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _ViewRoleDialogContent extends StatefulWidget {
+  final RoleModel role;
+  const _ViewRoleDialogContent({required this.role});
+
+  @override
+  State<_ViewRoleDialogContent> createState() => _ViewRoleDialogContentState();
+}
+
+class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade, _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 260));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.94, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _close() => _ctrl.reverse().then((_) => Navigator.pop(context));
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.14),
+                  blurRadius: 32,
+                  offset: const Offset(0, 10)),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Header ──────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20)),
+                  border: Border(
+                      bottom: BorderSide(color: AppColors.border, width: 0.5)),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 34, height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.purpleLight,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(Icons.admin_panel_settings_rounded,
+                        size: 17, color: AppColors.purple),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text("View role",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textHead)),
+                  const Spacer(),
+                  _DialogCloseBtn(onTap: _close),
+                ]),
+              ),
+
+              // ── Body ────────────────────────────────────────────────────
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Container(
+                          width: 42, height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.purpleLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.shield_rounded,
+                                color: AppColors.purple, size: 20),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.role.roleName,
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textHead)),
+                              Text("ID #${widget.role.id}",
+                                  style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: AppColors.textMuted)),
+                            ],
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 16),
+                      Container(height: 0.5, color: AppColors.divider),
+                      const SizedBox(height: 16),
+
+                      _RoleViewField(
+                          label: "Role ID",
+                          value: "${widget.role.id}",
+                          icon: Icons.tag_rounded),
+                      const SizedBox(height: 12),
+                      _RoleViewField(
+                          label: "Role Name",
+                          value: widget.role.roleName,
+                          icon: Icons.shield_rounded),
+                      const SizedBox(height: 12),
+                      _RoleViewField(
+                          label: "Description",
+                          value: widget.role.description.isEmpty
+                              ? "No description provided"
+                              : widget.role.description,
+                          icon: Icons.description_rounded,
+                          isEmpty: widget.role.description.isEmpty),
+                      const SizedBox(height: 12),
+                      _RoleViewField(
+                          label: "Created at",
+                          value: widget.role.createdAt.replaceAll('\n', '  '),
+                          icon: Icons.calendar_today_outlined),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Footer ──────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20)),
+                  border: Border(
+                      top: BorderSide(color: AppColors.border, width: 0.5)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: _close,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                              color: AppColors.border, width: 0.7),
+                        ),
+                        child: const Text("Close",
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.accent)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Role View Field ──────────────────────────────────────────────────────────
+class _RoleViewField extends StatelessWidget {
   final String label, value;
   final IconData icon;
-  final bool multiline;
-  const _ViewField({
+  final bool isEmpty;
+
+  const _RoleViewField({
     required this.label,
     required this.value,
     required this.icon,
-    this.multiline = false,
+    this.isEmpty = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.border, width: 0.7),
-      ),
-      child: Row(
-        crossAxisAlignment:
-            multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          Icon(icon, color: AppColors.accent, size: 15),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label,
-                  style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 3),
-              Text(value,
-                  style: const TextStyle(
-                      color: AppColors.textBody,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      height: 1.4)),
-            ]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 5),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border, width: 0.7),
           ),
-        ],
+          child: Row(children: [
+            Icon(icon,
+                size: 15,
+                color: isEmpty ? AppColors.border : AppColors.textMuted),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(value,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color:
+                          isEmpty ? AppColors.textMuted : AppColors.textBody,
+                      fontStyle:
+                          isEmpty ? FontStyle.italic : FontStyle.normal,
+                      fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Edit Role Dialog ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _EditRoleDialogContent extends StatefulWidget {
+  final RoleModel role;
+  final TextEditingController nameCtrl;
+  final TextEditingController descCtrl;
+  final GlobalKey<FormState> formKey;
+  final VoidCallback onSave;
+
+  const _EditRoleDialogContent({
+    required this.role,
+    required this.nameCtrl,
+    required this.descCtrl,
+    required this.formKey,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditRoleDialogContent> createState() => _EditRoleDialogContentState();
+}
+
+class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade, _scale;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 260));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.94, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _close() =>
+      _ctrl.reverse().then((_) => Navigator.pop(context));
+
+  void _trySave() {
+    if (widget.nameCtrl.text.trim().isEmpty) {
+      setState(() => _errorMessage = "Role name cannot be empty.");
+      return;
+    }
+    setState(() => _errorMessage = null);
+    widget.onSave();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.14),
+                  blurRadius: 32,
+                  offset: const Offset(0, 10)),
+            ],
+          ),
+          child: Form(
+            key: widget.formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                    border: Border(
+                        bottom:
+                            BorderSide(color: AppColors.border, width: 0.5)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentLight,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: const Icon(Icons.edit_rounded,
+                          size: 17, color: AppColors.accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Edit role",
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textHead)),
+                        Text(
+                          "ID #${widget.role.id}  ·  ${widget.role.roleName}",
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    _DialogCloseBtn(onTap: _close),
+                  ]),
+                ),
+
+                // ── Body ──────────────────────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_errorMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: AppColors.redLight,
+                              border: Border.all(
+                                  color: AppColors.red.withOpacity(0.2),
+                                  width: 0.7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  color: AppColors.red, size: 15),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(_errorMessage!,
+                                    style: const TextStyle(
+                                        color: Color(0xFFB71C1C),
+                                        fontSize: 12)),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _errorMessage = null),
+                                child: const Icon(Icons.close_rounded,
+                                    size: 13, color: AppColors.textMuted),
+                              ),
+                            ]),
+                          ),
+
+                        _RoleSectionLabel("Role information"),
+                        const SizedBox(height: 12),
+
+                        _RoleFieldLabel("Role Name"),
+                        const SizedBox(height: 5),
+                        _RoleInputField(
+                          controller: widget.nameCtrl,
+                          hint: "Enter role name",
+                          icon: Icons.shield_rounded,
+                        ),
+
+                        const SizedBox(height: 12),
+                        _RoleFieldLabel("Description"),
+                        const SizedBox(height: 5),
+                        _RoleInputField(
+                          controller: widget.descCtrl,
+                          hint: "Enter role description",
+                          icon: Icons.description_rounded,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Footer ────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceAlt,
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20)),
+                    border: Border(
+                        top: BorderSide(color: AppColors.border, width: 0.5)),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _close,
+                        child: Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                                color: AppColors.border, width: 0.7),
+                          ),
+                          child: const Center(
+                            child: Text("Cancel",
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textMuted)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: _trySave,
+                        child: Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(9),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: AppColors.accent.withOpacity(0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3)),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.check_rounded,
+                                  size: 15, color: Colors.white),
+                              SizedBox(width: 5),
+                              Text("Save changes",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── Form Label ───────────────────────────────────────────────────────────────
-class _FormLabel extends StatelessWidget {
-  final String label;
-  const _FormLabel({required this.label});
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Create Role Dialog ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _CreateRoleDialogContent extends StatefulWidget {
+  final TextEditingController nameCtrl;
+  final TextEditingController descCtrl;
+  final GlobalKey<FormState> formKey;
+  final VoidCallback onCreate;
+
+  const _CreateRoleDialogContent({
+    required this.nameCtrl,
+    required this.descCtrl,
+    required this.formKey,
+    required this.onCreate,
+  });
+
+  @override
+  State<_CreateRoleDialogContent> createState() =>
+      _CreateRoleDialogContentState();
+}
+
+class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade, _scale;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 260));
+    _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.94, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _close() =>
+      _ctrl.reverse().then((_) => Navigator.pop(context));
+
+  void _trySave() {
+    if (widget.nameCtrl.text.trim().isEmpty) {
+      setState(() => _errorMessage = "Role name cannot be empty.");
+      return;
+    }
+    setState(() => _errorMessage = null);
+    widget.onCreate();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Text(label,
-        style: const TextStyle(
-            color: AppColors.textHead,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700));
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.14),
+                  blurRadius: 32,
+                  offset: const Offset(0, 10)),
+            ],
+          ),
+          child: Form(
+            key: widget.formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                    border: Border(
+                        bottom:
+                            BorderSide(color: AppColors.border, width: 0.5)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: const Icon(Icons.add_moderator_rounded,
+                          size: 17, color: Colors.white),
+                    ),
+                    const SizedBox(width: 10),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Create role",
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textHead)),
+                        Text("Add a new system role",
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textMuted)),
+                      ],
+                    ),
+                    const Spacer(),
+                    _DialogCloseBtn(onTap: _close),
+                  ]),
+                ),
+
+                // ── Body ──────────────────────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_errorMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: AppColors.redLight,
+                              border: Border.all(
+                                  color: AppColors.red.withOpacity(0.2),
+                                  width: 0.7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  color: AppColors.red, size: 15),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(_errorMessage!,
+                                    style: const TextStyle(
+                                        color: Color(0xFFB71C1C),
+                                        fontSize: 12)),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _errorMessage = null),
+                                child: const Icon(Icons.close_rounded,
+                                    size: 13, color: AppColors.textMuted),
+                              ),
+                            ]),
+                          ),
+
+                        _RoleSectionLabel("Role information"),
+                        const SizedBox(height: 12),
+
+                        _RoleFieldLabel("Role Name"),
+                        const SizedBox(height: 5),
+                        _RoleInputField(
+                          controller: widget.nameCtrl,
+                          hint: "e.g. Sales Manager",
+                          icon: Icons.shield_rounded,
+                        ),
+
+                        const SizedBox(height: 12),
+                        _RoleFieldLabel("Description"),
+                        const SizedBox(height: 5),
+                        _RoleInputField(
+                          controller: widget.descCtrl,
+                          hint: "Describe what this role can do...",
+                          icon: Icons.description_rounded,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Footer ────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceAlt,
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20)),
+                    border: Border(
+                        top: BorderSide(color: AppColors.border, width: 0.5)),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _close,
+                        child: Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                                color: AppColors.border, width: 0.7),
+                          ),
+                          child: const Center(
+                            child: Text("Cancel",
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textMuted)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: _trySave,
+                        child: Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(9),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: AppColors.accent.withOpacity(0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3)),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.add_moderator_rounded,
+                                  size: 15, color: Colors.white),
+                              SizedBox(width: 5),
+                              Text("Create role",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Shared Form Sub-widgets ──────────────────────────────────────────────────
+
+class _RoleSectionLabel extends StatelessWidget {
+  final String label;
+  const _RoleSectionLabel(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(
+        width: 3, height: 12,
+        decoration: BoxDecoration(
+            color: AppColors.accent,
+            borderRadius: BorderRadius.circular(2)),
+      ),
+      const SizedBox(width: 7),
+      Text(label.toUpperCase(),
+          style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+              letterSpacing: 1.0)),
+    ]);
+  }
+}
+
+class _RoleFieldLabel extends StatelessWidget {
+  final String label;
+  const _RoleFieldLabel(this.label);
+
+  @override
+  Widget build(BuildContext context) => Text(label,
+      style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textBody));
+}
+
+class _RoleInputField extends StatefulWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final int maxLines;
+
+  const _RoleInputField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.maxLines = 1,
+  });
+
+  @override
+  State<_RoleInputField> createState() => _RoleInputFieldState();
+}
+
+class _RoleInputFieldState extends State<_RoleInputField> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (f) => setState(() => _focused = f),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: _focused
+                ? AppColors.accent.withOpacity(0.5)
+                : AppColors.border,
+            width: _focused ? 1.2 : 0.7,
+          ),
+        ),
+        child: TextField(
+          controller: widget.controller,
+          maxLines: widget.maxLines,
+          style: const TextStyle(
+              fontSize: 13.5,
+              color: AppColors.textBody,
+              fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            prefixIcon: Padding(
+              padding:
+                  EdgeInsets.only(bottom: widget.maxLines > 1 ? 44 : 0),
+              child: Icon(widget.icon,
+                  size: 17,
+                  color: _focused ? AppColors.accent : AppColors.textMuted),
+            ),
+            hintText: widget.hint,
+            hintStyle: const TextStyle(color: AppColors.textMuted),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 13),
+          ),
+        ),
+      ),
+    );
   }
 }
