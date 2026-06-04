@@ -1,12 +1,10 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_project_1/ApiService.dart';
 import 'package:flutter_project_1/Rolemanagement.dart';
 import 'package:flutter_project_1/UserManagementScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 
 void main() {
   SystemChrome.setSystemUIOverlayStyle(
@@ -62,6 +60,18 @@ class AppColors {
   static const divider = Color(0xFFEDF2F7);
 }
 
+// ─── API Constants ────────────────────────────────────────────────────────────
+class ApiConstants {
+  static const baseUrl = "http://125.209.66.147:5001/api";
+  static const token =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc4MDQ4MDY3NCwiZXhwIjoxNzgxMDg1NDc0fQ._pQEaVv5-MzhXJIRlkAeoVUrblNks4ZyUJfXye1DT3k";
+
+  static Map<String, String> get headers => {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      };
+}
+
 // ─── Dashboard Screen ─────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -106,23 +116,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
-  // ── Fetch Users + Roles counts for the stats row ──────────────────────────
   Future<void> _fetchStats() async {
     setState(() { _statsLoading = true; _statsError = false; });
     try {
-      final usersRes = await ApiService.get("/users");
-      final rolesRes = await ApiService.get("/roles");
+      final usersRes = await http.get(
+        Uri.parse("${ApiConstants.baseUrl}/users"),
+        headers: ApiConstants.headers,
+      ).timeout(const Duration(seconds: 10));
+
+      final rolesRes = await http.get(
+        Uri.parse("${ApiConstants.baseUrl}/roles"),
+        headers: ApiConstants.headers,
+      ).timeout(const Duration(seconds: 10));
 
       if (usersRes.statusCode == 200 && rolesRes.statusCode == 200) {
         final usersJson = jsonDecode(usersRes.body);
         final rolesJson = jsonDecode(rolesRes.body);
-
         final int totalUsers  = usersJson['totalCount'] ?? 0;
         final List usersList  = usersJson['users'] ?? [];
         final int activeUsers = usersList.where((u) => u['isActive'] == true).length;
         final List rolesList  = rolesJson['data'] ?? [];
         final int totalRoles  = rolesList.length;
-
         if (mounted) {
           setState(() {
             _totalUsers   = totalUsers;
@@ -160,8 +174,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     children: [
                       const _WelcomeBanner(),
                       const SizedBox(height: 16),
-
-                      // ── System stats row (API-driven) ───────────────────
                       _StatsRow(
                         totalUsers:  _totalUsers,
                         totalRoles:  _totalRoles,
@@ -170,12 +182,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         hasError:    _statsError,
                         onRetry:     _fetchStats,
                       ),
-
                       const SizedBox(height: 20),
-
-                      // ── Business KPI cards (replaced Quick Actions grid) ─
-                      const _KpiSection(),
-
+                      // ── 4 Charts replacing Quick Actions ─────────────
+                      const _ChartsSection(),
                       const SizedBox(height: 20),
                       const _RecentActivityCard(),
                       const SizedBox(height: 20),
@@ -198,9 +207,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 }
 
-// ─── KPI Section — 4 chart-based analytics cards ─────────────────────────────
-class _KpiSection extends StatelessWidget {
-  const _KpiSection();
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── 4 CHARTS SECTION ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _ChartsSection extends StatelessWidget {
+  const _ChartsSection();
 
   @override
   Widget build(BuildContext context) {
@@ -214,435 +226,637 @@ class _KpiSection extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w700)),
           Spacer(),
-          Text('This Month',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+          Text('FY 2026',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
         ]),
         const SizedBox(height: 12),
 
-        // Card 1 — Revenue line chart (full width)
-        _RevenueLineCard(),
-        const SizedBox(height: 12),
+        // Chart 1: Monthly Revenue — Bar Chart
+        const _RevenueBarChart(),
+        const SizedBox(height: 14),
 
-        // Card 2 & 3 — Bar chart + Donut chart side by side
-        Row(children: const [
-          Expanded(child: _SalesBarCard()),
-          SizedBox(width: 12),
-          Expanded(child: _DonutCard()),
-        ]),
-        const SizedBox(height: 12),
+        // Chart 2: Paint Categories — Donut Chart
+        const _CategoryDonutChart(),
+        const SizedBox(height: 14),
 
-        // Card 4 — Horizontal progress / category breakdown (full width)
-        const _CategoryBreakdownCard(),
+        // Chart 3: Vendor Requests — Line Chart
+        const _VendorLineChart(),
+        const SizedBox(height: 14),
+
+        // Chart 4: Regional Sales — Horizontal Bar
+        const _RegionalHBarChart(),
       ],
     );
   }
 }
 
-// ─── Card 1: Revenue Line Chart ───────────────────────────────────────────────
-class _RevenueLineCard extends StatelessWidget {
-  // Weekly revenue data points (PKR in thousands)
-  static const List<double> _data = [180, 240, 190, 310, 270, 390, 420];
-  static const List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// ─── Chart 1: Monthly Revenue Bar Chart ──────────────────────────────────────
+class _RevenueBarChart extends StatefulWidget {
+  const _RevenueBarChart();
+  @override
+  State<_RevenueBarChart> createState() => _RevenueBarChartState();
+}
 
-  _RevenueLineCard();
+class _RevenueBarChartState extends State<_RevenueBarChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  // Monthly revenue in millions PKR (bogus but realistic)
+  final List<double> _data = [4.2, 5.8, 4.9, 6.7, 7.1, 8.3, 7.6, 9.2, 8.8, 10.4, 9.7, 11.2];
+  final List<String> _months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  int? _hoveredIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 0.7),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.trending_up_rounded, color: AppColors.accent, size: 15),
-          ),
-          const SizedBox(width: 8),
-          const Text('Weekly Revenue',
-              style: TextStyle(color: AppColors.textHead, fontSize: 12.5, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-              Icon(Icons.arrow_upward_rounded, color: Color(0xFF2E7D32), size: 10),
-              SizedBox(width: 2),
-              Text('+18.4%', style: TextStyle(color: Color(0xFF2E7D32), fontSize: 10, fontWeight: FontWeight.w700)),
-            ]),
-          ),
-        ]),
-        const SizedBox(height: 4),
-        const Text('PKR 4.2M total this week',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 80,
-          child: CustomPaint(
-            size: const Size(double.infinity, 80),
-            painter: _LineChartPainter(data: _data, lineColor: AppColors.accent),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Day labels
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: _days.map((d) => Text(d,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 9, fontWeight: FontWeight.w500))).toList(),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─── Line Chart Painter ───────────────────────────────────────────────────────
-class _LineChartPainter extends CustomPainter {
-  final List<double> data;
-  final Color lineColor;
-  const _LineChartPainter({required this.data, required this.lineColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (data.isEmpty) return;
-
-    final double minVal = data.reduce((a, b) => a < b ? a : b);
-    final double maxVal = data.reduce((a, b) => a > b ? a : b);
-    final double range  = (maxVal - minVal) == 0 ? 1 : (maxVal - minVal);
-
-    List<Offset> points = [];
-    for (int i = 0; i < data.length; i++) {
-      final double x = i * size.width / (data.length - 1);
-      final double y = size.height - ((data[i] - minVal) / range) * size.height * 0.85 - size.height * 0.05;
-      points.add(Offset(x, y));
-    }
-
-    // Draw filled area under line
-    final fillPath = Path();
-    fillPath.moveTo(points.first.dx, size.height);
-    for (final p in points) { fillPath.lineTo(p.dx, p.dy); }
-    fillPath.lineTo(points.last.dx, size.height);
-    fillPath.close();
-
-    canvas.drawPath(
-      fillPath,
-      Paint()
-        ..shader = LinearGradient(
-            colors: [lineColor.withOpacity(0.22), lineColor.withOpacity(0.0)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter)
-            .createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
-    );
-
-    // Draw line
-    final linePath = Path();
-    linePath.moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      final cp1 = Offset((points[i - 1].dx + points[i].dx) / 2, points[i - 1].dy);
-      final cp2 = Offset((points[i - 1].dx + points[i].dx) / 2, points[i].dy);
-      linePath.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, points[i].dx, points[i].dy);
-    }
-
-    canvas.drawPath(
-      linePath,
-      Paint()
-        ..color = lineColor
-        ..strokeWidth = 2.2
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Draw dots on each point
-    for (final p in points) {
-      canvas.drawCircle(p, 3.5, Paint()..color = AppColors.surface);
-      canvas.drawCircle(p, 2.2, Paint()..color = lineColor);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_LineChartPainter old) => old.data != data;
-}
-
-// ─── Card 2: Monthly Sales Bar Chart ─────────────────────────────────────────
-class _SalesBarCard extends StatelessWidget {
-  const _SalesBarCard();
-
-  static const List<double> _values = [0.55, 0.80, 0.60, 0.90, 0.70, 0.85];
-  static const List<String> _months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.7),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF2E7D32), size: 15),
-          ),
-          const SizedBox(width: 7),
-          const Expanded(
-            child: Text('Sales', style: TextStyle(color: AppColors.textHead, fontSize: 12, fontWeight: FontWeight.w700)),
-          ),
-        ]),
-        const SizedBox(height: 2),
-        const Text('1,284 orders', style: TextStyle(color: AppColors.textMuted, fontSize: 9.5)),
-        const SizedBox(height: 14),
-        // Bar chart
-        SizedBox(
-          height: 70,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(_values.length, (i) {
-              final bool isLast = i == _values.length - 1;
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        width: 14,
-                        height: 60 * _values[i],
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isLast
-                                ? [const Color(0xFF2E7D32), const Color(0xFF66BB6A)]
-                                : [const Color(0xFFB8E0C0), const Color(0xFFD4EED9)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.bar_chart_rounded, color: AppColors.accent, size: 16),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Monthly Revenue', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+                Text('PKR in Millions • 2026', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              ],
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(20)),
+              child: const Text('↑ 18.4%', style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+          const SizedBox(height: 18),
+          AnimatedBuilder(
+            animation: _anim,
+            builder: (_, __) => SizedBox(
+              height: 130,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(_data.length, (i) {
+                  final pct = (_data[i] / 12.0) * _anim.value;
+                  final isHovered = _hoveredIndex == i;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTapDown: (_) => setState(() => _hoveredIndex = i),
+                      onTapUp: (_) => setState(() => _hoveredIndex = null),
+                      onTapCancel: () => setState(() => _hoveredIndex = null),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (isHovered)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Text('${_data[i]}M',
+                                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700)),
+                              ),
+                            const SizedBox(height: 3),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              height: 100 * pct,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isHovered
+                                      ? [AppColors.accent, const Color(0xFF1A5BB5)]
+                                      : [const Color(0xFF5A9BE8), AppColors.accent],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(_months[i], style: const TextStyle(color: AppColors.textMuted, fontSize: 8.5)),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            }),
+                  );
+                }),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: _months.map((m) => Text(m,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 8.5, fontWeight: FontWeight.w500))).toList(),
-        ),
-      ]),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _ChartStat(label: 'Total', value: 'PKR 94.9M', color: AppColors.accent),
+              _ChartStat(label: 'Avg/Month', value: 'PKR 7.9M', color: AppColors.primary),
+              _ChartStat(label: 'Best Month', value: 'Dec • 11.2M', color: AppColors.success),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─── Card 3: Donut / Pie Chart ────────────────────────────────────────────────
-class _DonutCard extends StatelessWidget {
-  const _DonutCard();
+// ─── Chart 2: Category Donut Chart ───────────────────────────────────────────
+class _CategoryDonutChart extends StatefulWidget {
+  const _CategoryDonutChart();
+  @override
+  State<_CategoryDonutChart> createState() => _CategoryDonutChartState();
+}
 
-  // Channel breakdown percentages
-  static const List<_DonutSlice> _slices = [
-    _DonutSlice(label: 'Direct',   value: 0.42, color: Color(0xFF3B7DD8)),
-    _DonutSlice(label: 'Referral', value: 0.28, color: Color(0xFF26A69A)),
-    _DonutSlice(label: 'Social',   value: 0.18, color: Color(0xFF5C35B5)),
-    _DonutSlice(label: 'Other',    value: 0.12, color: Color(0xFFE57F17)),
+class _CategoryDonutChartState extends State<_CategoryDonutChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  final List<_DonutSlice> _slices = const [
+    _DonutSlice('Exterior Paints', 0.32, Color(0xFF3B7DD8)),
+    _DonutSlice('Interior Paints', 0.25, Color(0xFF5C35B5)),
+    _DonutSlice('Wood Finish', 0.18, Color(0xFF26A69A)),
+    _DonutSlice('Primers', 0.15, Color(0xFFF57F17)),
+    _DonutSlice('Specialty', 0.10, Color(0xFFE53935)),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 0.7),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.purpleLight, borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.pie_chart_rounded, color: AppColors.purple, size: 15),
-          ),
-          const SizedBox(width: 7),
-          const Expanded(
-            child: Text('Channels', style: TextStyle(color: AppColors.textHead, fontSize: 12, fontWeight: FontWeight.w700)),
-          ),
-        ]),
-        const SizedBox(height: 2),
-        const Text('Traffic sources', style: TextStyle(color: AppColors.textMuted, fontSize: 9.5)),
-        const SizedBox(height: 10),
-        // Donut chart
-        Center(
-          child: SizedBox(
-            width: 80, height: 80,
-            child: CustomPaint(
-              painter: _DonutPainter(slices: _slices),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(color: AppColors.purpleLight, borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.donut_large_rounded, color: AppColors.purple, size: 16),
             ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Legend
-        ..._slices.take(3).map((s) => Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(children: [
-            Container(width: 6, height: 6, decoration: BoxDecoration(color: s.color, shape: BoxShape.circle)),
-            const SizedBox(width: 5),
-            Text(s.label, style: const TextStyle(color: AppColors.textBody, fontSize: 9, fontWeight: FontWeight.w500)),
-            const Spacer(),
-            Text('${(s.value * 100).round()}%', style: TextStyle(color: s.color, fontSize: 9, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Paint Category Sales', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+                Text('By product category • Units Sold', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              ],
+            ),
           ]),
-        )),
-      ]),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              AnimatedBuilder(
+                animation: _anim,
+                builder: (_, __) => SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: CustomPaint(painter: _DonutPainter(_slices, _anim.value)),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  children: _slices.map((s) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Container(width: 10, height: 10, decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(s.label, style: const TextStyle(color: AppColors.textBody, fontSize: 10.5, fontWeight: FontWeight.w500))),
+                        Text('${(s.pct * 100).round()}%', style: TextStyle(color: s.color, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  )).toList(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _DonutSlice {
   final String label;
-  final double value;
+  final double pct;
   final Color color;
-  const _DonutSlice({required this.label, required this.value, required this.color});
+  const _DonutSlice(this.label, this.pct, this.color);
 }
 
-// ─── Donut Chart Painter ──────────────────────────────────────────────────────
 class _DonutPainter extends CustomPainter {
   final List<_DonutSlice> slices;
-  const _DonutPainter({required this.slices});
+  final double progress;
+  _DonutPainter(this.slices, this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    const strokeWidth = 14.0;
-    double startAngle = -3.14159 / 2; // Start from top
-
-    for (final slice in slices) {
-      final sweepAngle = slice.value * 2 * 3.14159;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = min(cx, cy) - 4;
+    const inner = 0.55;
+    double start = -pi / 2;
+    for (final s in slices) {
+      final sweep = 2 * pi * s.pct * progress;
+      final paint = Paint()
+        ..color = s.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * (1 - inner)
+        ..strokeCap = StrokeCap.butt;
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
-        startAngle,
-        sweepAngle - 0.04, // Small gap between slices
+        Rect.fromCircle(center: Offset(cx, cy), radius: r * (1 + inner) / 2),
+        start,
+        sweep - 0.04,
         false,
-        Paint()
-          ..color = slice.color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round,
+        paint,
       );
-      startAngle += sweepAngle;
+      start += sweep;
     }
-
-    // Center label
+    // center text
     final tp = TextPainter(
       text: const TextSpan(
-        text: '42%',
-        style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w800),
+        children: [
+          TextSpan(text: '5\n', style: TextStyle(color: AppColors.textHead, fontSize: 22, fontWeight: FontWeight.w800, height: 1.1)),
+          TextSpan(text: 'Categories', style: TextStyle(color: AppColors.textMuted, fontSize: 8)),
+        ],
       ),
+      textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(center.dx - tp.width / 2, center.dy - tp.height / 2));
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
   }
 
   @override
-  bool shouldRepaint(_DonutPainter old) => false;
+  bool shouldRepaint(_DonutPainter old) => old.progress != progress;
 }
 
-// ─── Card 4: Category Breakdown (Horizontal bars) ────────────────────────────
-class _CategoryBreakdownCard extends StatelessWidget {
-  const _CategoryBreakdownCard();
+// ─── Chart 3: Vendor Requests Line Chart ─────────────────────────────────────
+class _VendorLineChart extends StatefulWidget {
+  const _VendorLineChart();
+  @override
+  State<_VendorLineChart> createState() => _VendorLineChartState();
+}
 
-  static const List<_CatItem> _items = [
-    _CatItem(label: 'Interior Paint',  pct: 0.72, value: 'PKR 1.8M', color: Color(0xFF3B7DD8)),
-    _CatItem(label: 'Exterior Paint',  pct: 0.55, value: 'PKR 1.3M', color: Color(0xFF26A69A)),
-    _CatItem(label: 'Primers',         pct: 0.38, value: 'PKR 0.6M', color: Color(0xFF5C35B5)),
-    _CatItem(label: 'Specialty Coats', pct: 0.21, value: 'PKR 0.5M', color: Color(0xFFE57F17)),
-  ];
+class _VendorLineChartState extends State<_VendorLineChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  // Vendor requests approved vs pending per quarter
+  final List<double> _approved = [12, 18, 22, 31, 28, 35, 40, 44, 38, 52, 47, 58];
+  final List<double> _pending  = [5,  8,  6,  11, 9,  14, 10, 16, 13, 18, 15, 21];
+  final List<String> _months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 0.7),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.warningLight, borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.category_rounded, color: AppColors.warning, size: 15),
-          ),
-          const SizedBox(width: 8),
-          const Text('Top Categories',
-              style: TextStyle(color: AppColors.textHead, fontSize: 12.5, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          const Text('by Revenue', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
-        ]),
-        const SizedBox(height: 14),
-        ..._items.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.show_chart_rounded, color: Color(0xFF2E7D32), size: 16),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Vendor Requests', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+                Text('Approved vs Pending • 2026', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              ],
+            ),
+            const Spacer(),
             Row(children: [
-              Expanded(
-                child: Text(item.label,
-                    style: const TextStyle(color: AppColors.textBody, fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-              Text(item.value,
-                  style: TextStyle(color: item.color, fontSize: 11, fontWeight: FontWeight.w700)),
-            ]),
-            const SizedBox(height: 5),
-            Stack(children: [
-              // Background track
-              Container(
-                height: 7,
-                decoration: BoxDecoration(
-                    color: AppColors.divider, borderRadius: BorderRadius.circular(4)),
-              ),
-              // Filled bar with gradient
-              FractionallySizedBox(
-                widthFactor: item.pct,
-                child: Container(
-                  height: 7,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [item.color, item.color.withOpacity(0.65)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 4),
+              const Text('Approved', style: TextStyle(color: AppColors.textMuted, fontSize: 9)),
+              const SizedBox(width: 10),
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 4),
+              const Text('Pending', style: TextStyle(color: AppColors.textMuted, fontSize: 9)),
             ]),
           ]),
-        )),
-      ]),
+          const SizedBox(height: 16),
+          AnimatedBuilder(
+            animation: _anim,
+            builder: (_, __) => SizedBox(
+              height: 130,
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: _LinePainter(
+                  series1: _approved,
+                  series2: _pending,
+                  color1: AppColors.success,
+                  color2: AppColors.warning,
+                  progress: _anim.value,
+                  labels: _months,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _ChartStat(label: 'Total Approved', value: '385', color: AppColors.success),
+              _ChartStat(label: 'Total Pending', value: '146', color: AppColors.warning),
+              _ChartStat(label: 'Success Rate', value: '72.5%', color: AppColors.accent),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _CatItem {
-  final String label, value;
-  final double pct;
-  final Color color;
-  const _CatItem({required this.label, required this.pct, required this.value, required this.color});
+class _LinePainter extends CustomPainter {
+  final List<double> series1, series2;
+  final Color color1, color2;
+  final double progress;
+  final List<String> labels;
+
+  _LinePainter({
+    required this.series1,
+    required this.series2,
+    required this.color1,
+    required this.color2,
+    required this.progress,
+    required this.labels,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double maxVal = [...series1, ...series2].reduce(max).toDouble();
+    const double bottomPad = 20;
+    final double h = size.height - bottomPad;
+    final double step = size.width / (series1.length - 1);
+
+    void drawSeries(List<double> data, Color color) {
+      final path = Path();
+      final fillPath = Path();
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      final int visibleCount = (data.length * progress).ceil().clamp(1, data.length);
+      for (int i = 0; i < visibleCount; i++) {
+        final x = i * step;
+        final y = h - (data[i] / maxVal) * h;
+        if (i == 0) {
+          path.moveTo(x, y);
+          fillPath.moveTo(x, h);
+          fillPath.lineTo(x, y);
+        } else {
+          final px = (i - 1) * step;
+          final py = h - (data[i - 1] / maxVal) * h;
+          final cx1 = px + step / 3;
+          final cx2 = x - step / 3;
+          path.cubicTo(cx1, py, cx2, y, x, y);
+          fillPath.cubicTo(cx1, py, cx2, y, x, y);
+        }
+        // dot
+        canvas.drawCircle(Offset(x, y), 3.5, Paint()..color = color..style = PaintingStyle.fill);
+        canvas.drawCircle(Offset(x, y), 3.5, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.5);
+      }
+      fillPath.lineTo((visibleCount - 1) * step, h);
+      fillPath.close();
+
+      final gradient = LinearGradient(
+        colors: [color.withOpacity(0.15), color.withOpacity(0.0)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+      canvas.drawPath(fillPath, Paint()
+        ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, h))
+        ..style = PaintingStyle.fill);
+      canvas.drawPath(path, paint);
+    }
+
+    drawSeries(series1, color1);
+    drawSeries(series2, color2);
+
+    // X labels
+    final textStyle = const TextStyle(color: AppColors.textMuted, fontSize: 8.5);
+    for (int i = 0; i < labels.length; i++) {
+      final tp = TextPainter(
+        text: TextSpan(text: labels[i], style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(i * step - tp.width / 2, h + 5));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) => old.progress != progress;
 }
 
-// ─── Top Bar ──────────────────────────────────────────────────────────────────
+// ─── Chart 4: Regional Sales Horizontal Bar Chart ────────────────────────────
+class _RegionalHBarChart extends StatefulWidget {
+  const _RegionalHBarChart();
+  @override
+  State<_RegionalHBarChart> createState() => _RegionalHBarChartState();
+}
+
+class _RegionalHBarChartState extends State<_RegionalHBarChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  final List<_RegionData> _regions = const [
+    _RegionData('Lahore Region',     0.88, Color(0xFF3B7DD8), 'PKR 24.2M'),
+    _RegionData('Karachi Region',    0.74, Color(0xFF5C35B5), 'PKR 20.4M'),
+    _RegionData('Islamabad Region',  0.61, Color(0xFF26A69A), 'PKR 16.8M'),
+    _RegionData('Faisalabad Region', 0.49, Color(0xFFF57F17), 'PKR 13.5M'),
+    _RegionData('Multan Region',     0.37, Color(0xFFE53935), 'PKR 10.2M'),
+    _RegionData('Peshawar Region',   0.28, Color(0xFF795548), 'PKR 7.7M'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 0.7),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(color: AppColors.warningLight, borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.map_rounded, color: AppColors.warning, size: 16),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Regional Sales', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+                Text('Revenue by Region • FY 2026', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 16),
+          AnimatedBuilder(
+            animation: _anim,
+            builder: (_, __) => Column(
+              children: _regions.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(
+                        child: Text(r.label,
+                            style: const TextStyle(color: AppColors.textBody, fontSize: 11, fontWeight: FontWeight.w500)),
+                      ),
+                      Text(r.value,
+                          style: TextStyle(color: r.color, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ]),
+                    const SizedBox(height: 5),
+                    Stack(children: [
+                      Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 50),
+                        height: 8,
+                        width: (MediaQuery.of(context).size.width - 64) * r.pct * _anim.value,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [r.color.withOpacity(0.7), r.color]),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _ChartStat(label: 'Total Revenue', value: 'PKR 92.8M', color: AppColors.primary),
+              _ChartStat(label: 'Top Region', value: 'Lahore', color: AppColors.accent),
+              _ChartStat(label: 'Regions', value: '6 Active', color: AppColors.success),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegionData {
+  final String label;
+  final double pct;
+  final Color color;
+  final String value;
+  const _RegionData(this.label, this.pct, this.color, this.value);
+}
+
+// ─── Chart Stat Widget ────────────────────────────────────────────────────────
+class _ChartStat extends StatelessWidget {
+  final String label, value;
+  final Color color;
+  const _ChartStat({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
+      const SizedBox(height: 2),
+      Text(value, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+    ]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── TOP BAR ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
 class _TopBar extends StatelessWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
   const _TopBar({required this.scaffoldKey});
@@ -659,19 +873,14 @@ class _TopBar extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.primary,
-              border: Border.all(
-                  color: AppColors.primaryMid.withOpacity(0.4), width: 1),
+              border: Border.all(color: AppColors.primaryMid.withOpacity(0.4), width: 1),
             ),
             child: const Icon(Icons.diamond, color: Colors.white, size: 19),
           ),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
             Text('Diamond Paint',
-                style: TextStyle(
-                    color: AppColors.textHead,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2)),
+                style: TextStyle(color: AppColors.textHead, fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
             Text('Paint Solutions',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
           ]),
@@ -682,15 +891,10 @@ class _TopBar extends StatelessWidget {
             onTap: () => scaffoldKey.currentState?.openDrawer(),
             child: Container(
               width: 34, height: 34,
-              decoration: const BoxDecoration(
-                  shape: BoxShape.circle, color: AppColors.accent),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.accent),
               child: const Center(
                 child: Text('SA',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5)),
+                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               ),
             ),
           ),
@@ -725,8 +929,7 @@ class _IconBtn extends StatelessWidget {
             right: 7, top: 7,
             child: Container(
               width: 7, height: 7,
-              decoration: const BoxDecoration(
-                  color: AppColors.red, shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: AppColors.red, shape: BoxShape.circle),
             ),
           ),
       ]),
@@ -750,49 +953,37 @@ class _WelcomeBanner extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(
-              color: const Color(0xFF1A2B4A).withOpacity(0.28),
-              blurRadius: 18,
-              offset: const Offset(0, 7)),
+          BoxShadow(color: const Color(0xFF1A2B4A).withOpacity(0.28), blurRadius: 18, offset: const Offset(0, 7)),
         ],
       ),
       child: Row(children: [
         Expanded(
           child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Welcome back,',
-                    style: TextStyle(color: Color(0xFF8AABCE), fontSize: 11)),
-                const SizedBox(height: 3),
-                const Text('Super Admin',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.15), width: 0.6),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                        width: 7, height: 7,
-                        decoration: const BoxDecoration(
-                            color: Color(0xFF69F0AE),
-                            shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
-                    const Text('All systems operational',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500)),
-                  ]),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Welcome back,', style: TextStyle(color: Color(0xFF8AABCE), fontSize: 11)),
+              const SizedBox(height: 3),
+              const Text('Super Admin',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.6),
                 ),
-              ]),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                      width: 7, height: 7,
+                      decoration: const BoxDecoration(color: Color(0xFF69F0AE), shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  const Text('All systems operational',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w500)),
+                ]),
+              ),
+            ],
+          ),
         ),
         Container(
           width: 58, height: 58,
@@ -815,53 +1006,35 @@ class _StatsRow extends StatelessWidget {
   final VoidCallback onRetry;
 
   const _StatsRow({
-    required this.totalUsers,
-    required this.totalRoles,
-    required this.activeUsers,
-    required this.isLoading,
-    required this.hasError,
-    required this.onRetry,
+    required this.totalUsers, required this.totalRoles, required this.activeUsers,
+    required this.isLoading, required this.hasError, required this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
     if (hasError) return _ErrorRetryBar(onRetry: onRetry);
-
     return Row(children: [
       Expanded(child: _StatCard(
-          icon: Icons.people_alt_rounded,
-          label: 'Total Users',
-          value: isLoading ? '—' : '$totalUsers',
-          iconColor: AppColors.accent,
-          iconBg: AppColors.accentLight,
-          trend: isLoading ? '...' : '+$activeUsers active',
-          trendColor: AppColors.accent,
-          isLoading: isLoading)),
+          icon: Icons.people_alt_rounded, label: 'Total Users',
+          value: isLoading ? '—' : '$totalUsers', iconColor: AppColors.accent,
+          iconBg: AppColors.accentLight, trend: isLoading ? '...' : '+$activeUsers active',
+          trendColor: AppColors.accent, isLoading: isLoading)),
       const SizedBox(width: 10),
       Expanded(child: _StatCard(
-          icon: Icons.shield_rounded,
-          label: 'Roles',
-          value: isLoading ? '—' : '$totalRoles',
-          iconColor: AppColors.warning,
-          iconBg: AppColors.warningLight,
-          trend: 'Active',
-          trendColor: AppColors.warning,
-          isLoading: isLoading)),
+          icon: Icons.shield_rounded, label: 'Roles',
+          value: isLoading ? '—' : '$totalRoles', iconColor: AppColors.warning,
+          iconBg: AppColors.warningLight, trend: 'Active',
+          trendColor: AppColors.warning, isLoading: isLoading)),
       const SizedBox(width: 10),
       Expanded(child: _StatCard(
-          icon: Icons.pending_actions_rounded,
-          label: 'Requests',
-          value: '7',
-          iconColor: AppColors.red,
-          iconBg: AppColors.redLight,
-          trend: 'Pending',
-          trendColor: AppColors.red,
-          isLoading: false)),
+          icon: Icons.pending_actions_rounded, label: 'Requests',
+          value: '7', iconColor: AppColors.red,
+          iconBg: AppColors.redLight, trend: 'Pending',
+          trendColor: AppColors.red, isLoading: false)),
     ]);
   }
 }
 
-// ─── Error Retry Bar ──────────────────────────────────────────────────────────
 class _ErrorRetryBar extends StatelessWidget {
   final VoidCallback onRetry;
   const _ErrorRetryBar({required this.onRetry});
@@ -878,10 +1051,8 @@ class _ErrorRetryBar extends StatelessWidget {
       child: Row(children: [
         const Icon(Icons.wifi_off_rounded, color: AppColors.red, size: 18),
         const SizedBox(width: 10),
-        const Expanded(
-          child: Text('Could not load stats',
-              style: TextStyle(color: AppColors.red, fontSize: 12.5, fontWeight: FontWeight.w600)),
-        ),
+        const Expanded(child: Text('Could not load stats',
+            style: TextStyle(color: AppColors.red, fontSize: 12.5, fontWeight: FontWeight.w600))),
         GestureDetector(
           onTap: onRetry,
           child: Container(
@@ -896,7 +1067,6 @@ class _ErrorRetryBar extends StatelessWidget {
   }
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label, value, trend;
@@ -905,8 +1075,8 @@ class _StatCard extends StatelessWidget {
 
   const _StatCard({
     required this.icon, required this.label, required this.value,
-    required this.iconColor, required this.iconBg,
-    required this.trend, required this.trendColor, this.isLoading = false,
+    required this.iconColor, required this.iconBg, required this.trend,
+    required this.trendColor, this.isLoading = false,
   });
 
   @override
@@ -926,16 +1096,13 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: iconColor, size: 17)),
         const SizedBox(height: 10),
         isLoading
-            ? Container(width: 36, height: 22,
-                decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(6)))
-            : Text(value,
-                style: const TextStyle(color: AppColors.textHead, fontSize: 22, fontWeight: FontWeight.w800)),
+            ? Container(width: 36, height: 22, decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(6)))
+            : Text(value, style: const TextStyle(color: AppColors.textHead, fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 9.5, fontWeight: FontWeight.w500)),
         const SizedBox(height: 5),
         isLoading
-            ? Container(width: 50, height: 10,
-                decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(4)))
+            ? Container(width: 50, height: 10, decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(4)))
             : Text(trend, style: TextStyle(color: trendColor, fontSize: 9, fontWeight: FontWeight.w700)),
       ]),
     );
@@ -947,10 +1114,10 @@ class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard();
 
   static const _items = [
-    _Act(icon: Icons.person_add_rounded,  text: 'New user "test1234" added',     time: '2m ago',  bg: AppColors.accentLight,  ic: Color(0xFF1E7BC4)),
-    _Act(icon: Icons.delete_rounded,      text: 'User #125 removed',             time: '1h ago',  bg: AppColors.redLight,     ic: Color(0xFFC62828)),
-    _Act(icon: Icons.edit_rounded,        text: 'User "updateduser3" modified',  time: '3h ago',  bg: AppColors.warningLight, ic: AppColors.warning),
-    _Act(icon: Icons.shield_rounded,      text: 'Role permissions updated',      time: '1d ago',  bg: AppColors.purpleLight,  ic: AppColors.purple),
+    _Act(icon: Icons.person_add_rounded,  text: 'New user "test1234" added',   time: '2m ago',  bg: AppColors.accentLight,  ic: Color(0xFF1E7BC4)),
+    _Act(icon: Icons.delete_rounded,      text: 'User #125 removed',           time: '1h ago',  bg: AppColors.redLight,     ic: Color(0xFFC62828)),
+    _Act(icon: Icons.edit_rounded,        text: 'User "updateduser3" modified', time: '3h ago',  bg: AppColors.warningLight, ic: AppColors.warning),
+    _Act(icon: Icons.shield_rounded,      text: 'Role permissions updated',     time: '1d ago',  bg: AppColors.purpleLight,  ic: AppColors.purple),
   ];
 
   @override
@@ -967,8 +1134,7 @@ class _RecentActivityCard extends StatelessWidget {
         Row(children: [
           const Icon(Icons.history_rounded, color: AppColors.accent, size: 17),
           const SizedBox(width: 7),
-          const Text('Recent Activity',
-              style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+          const Text('Recent Activity', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -978,18 +1144,17 @@ class _RecentActivityCard extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         ..._items.map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(children: [
-                Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: a.bg, borderRadius: BorderRadius.circular(9)),
-                    child: Icon(a.icon, color: a.ic, size: 15)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(a.text,
-                    style: const TextStyle(color: AppColors.textBody, fontSize: 12, fontWeight: FontWeight.w500))),
-                Text(a.time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
-              ]),
-            )),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(children: [
+            Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(color: a.bg, borderRadius: BorderRadius.circular(9)),
+                child: Icon(a.icon, color: a.ic, size: 15)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(a.text, style: const TextStyle(color: AppColors.textBody, fontSize: 12, fontWeight: FontWeight.w500))),
+            Text(a.time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+          ]),
+        )),
       ]),
     );
   }
@@ -1020,8 +1185,7 @@ class _BudgetCard extends StatelessWidget {
         Row(children: const [
           Icon(Icons.account_balance_wallet_rounded, color: AppColors.warning, size: 17),
           SizedBox(width: 7),
-          Text('Budget Overview',
-              style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
+          Text('Budget Overview', style: TextStyle(color: AppColors.textHead, fontSize: 13, fontWeight: FontWeight.w700)),
           Spacer(),
           Text('FY 2026', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
         ]),
@@ -1048,14 +1212,14 @@ class _Bar extends StatelessWidget {
       Row(children: [
         Text(label, style: const TextStyle(color: AppColors.textBody, fontSize: 11.5, fontWeight: FontWeight.w500)),
         const Spacer(),
-        Text('${(pct * 100).round()}%',
-            style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+        Text('${(pct * 100).round()}%', style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700)),
       ]),
       const SizedBox(height: 5),
       ClipRRect(
         borderRadius: BorderRadius.circular(5),
         child: LinearProgressIndicator(
-          value: pct, minHeight: 6,
+          value: pct,
+          minHeight: 6,
           backgroundColor: AppColors.divider,
           valueColor: AlwaysStoppedAnimation<Color>(color),
         ),
@@ -1093,22 +1257,23 @@ class _BottomNavBar extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onTap(i),
               behavior: HitTestBehavior.opaque,
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                if (sel)
-                  Container(
-                      width: 20, height: 3,
-                      margin: const EdgeInsets.only(bottom: 3),
-                      decoration: BoxDecoration(
-                          color: AppColors.accent, borderRadius: BorderRadius.circular(2))),
-                Icon(items[i].icon,
-                    color: sel ? AppColors.accent : AppColors.textMuted, size: 22),
-                const SizedBox(height: 3),
-                Text(items[i].label,
-                    style: TextStyle(
-                        color: sel ? AppColors.accent : AppColors.textMuted,
-                        fontSize: 9.5,
-                        fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
-              ]),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (sel)
+                    Container(
+                        width: 20, height: 3,
+                        margin: const EdgeInsets.only(bottom: 3),
+                        decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2))),
+                  Icon(items[i].icon, color: sel ? AppColors.accent : AppColors.textMuted, size: 22),
+                  const SizedBox(height: 3),
+                  Text(items[i].label,
+                      style: TextStyle(
+                          color: sel ? AppColors.accent : AppColors.textMuted,
+                          fontSize: 9.5,
+                          fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
+                ],
+              ),
             ),
           );
         }),
@@ -1117,26 +1282,28 @@ class _BottomNavBar extends StatelessWidget {
   }
 }
 
-// ─── Profile Drawer ───────────────────────────────────────────────────────────
-// Contains profile header, Quick Actions grid, and menu sections.
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PROFILE DRAWER (with Quick Actions inside) ───────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
 class _ProfileDrawer extends StatelessWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
   const _ProfileDrawer({required this.scaffoldKey});
 
-  // ── Quick action items moved from the dashboard body into the drawer ───────
-  static const List<_ActionItem> _quickItems = [
-    _ActionItem(icon: Icons.manage_accounts_rounded,        label: 'User\nMgmt',    bg: Color(0xFFEBF3FF),  ic: AppColors.accent,           isUserMgmt: true),
-    _ActionItem(icon: Icons.admin_panel_settings_rounded,   label: 'Roles',         bg: AppColors.purpleLight, ic: AppColors.purple,          isRoles: true),
-    _ActionItem(icon: Icons.assignment_rounded,             label: 'Area\nHead',    bg: AppColors.accentLight, ic: Color(0xFF1E7BC4)),
-    _ActionItem(icon: Icons.store_rounded,                  label: 'Vendor\nReq',   bg: Color(0xFFFBE9E7),  ic: Color(0xFFE65100)),
-    _ActionItem(icon: Icons.tune_rounded,                   label: 'Req.\nItems',   bg: Color(0xFFE8F5E9),  ic: Color(0xFF2E7D32)),
-    _ActionItem(icon: Icons.category_rounded,               label: 'Req.\nTypes',   bg: AppColors.purpleLight, ic: Color(0xFF4527A0)),
-    _ActionItem(icon: Icons.supervised_user_circle_rounded, label: 'SAP\nUsers',    bg: AppColors.accentLight, ic: Color(0xFF00695C)),
-    _ActionItem(icon: Icons.bar_chart_rounded,              label: 'Statistics',    bg: Color(0xFFEBF3FF),  ic: AppColors.primary),
-    _ActionItem(icon: Icons.account_balance_wallet_rounded, label: 'Budget',        bg: AppColors.redLight, ic: Color(0xFFC62828)),
-    _ActionItem(icon: Icons.payment_rounded,                label: 'Payments',      bg: AppColors.accentLight, ic: Color(0xFF00796B)),
-    _ActionItem(icon: Icons.email_rounded,                  label: 'SMTP',          bg: Color(0xFFECEFF1),  ic: Color(0xFF37474F)),
-    _ActionItem(icon: Icons.batch_prediction_rounded,       label: 'Pay\nBatch',    bg: Color(0xFFEFEBE9),  ic: Color(0xFF4E342E)),
+  // All 12 quick action items
+  static const List<_ActionItem> _actions = [
+    _ActionItem(icon: Icons.manage_accounts_rounded, label: 'User Management',   bg: Color(0xFFEBF3FF), ic: AppColors.accent,    isUserMgmt: true),
+    _ActionItem(icon: Icons.admin_panel_settings_rounded, label: 'Role Management', bg: AppColors.purpleLight, ic: AppColors.purple, isRoles: true),
+    _ActionItem(icon: Icons.assignment_rounded,       label: 'Area Head',         bg: AppColors.accentLight,  ic: Color(0xFF1E7BC4)),
+    _ActionItem(icon: Icons.store_rounded,            label: 'Vendor Requests',   bg: Color(0xFFFBE9E7),      ic: Color(0xFFE65100)),
+    _ActionItem(icon: Icons.tune_rounded,             label: 'Request Items',     bg: Color(0xFFE8F5E9),      ic: Color(0xFF2E7D32)),
+    _ActionItem(icon: Icons.category_rounded,         label: 'Request Types',     bg: AppColors.purpleLight,  ic: Color(0xFF4527A0)),
+    _ActionItem(icon: Icons.supervised_user_circle_rounded, label: 'SAP Users',  bg: AppColors.accentLight,  ic: Color(0xFF00695C)),
+    _ActionItem(icon: Icons.bar_chart_rounded,        label: 'Statistics',        bg: Color(0xFFEBF3FF),      ic: AppColors.primary),
+    _ActionItem(icon: Icons.account_balance_wallet_rounded, label: 'Budget Mgmt', bg: AppColors.redLight,    ic: Color(0xFFC62828)),
+    _ActionItem(icon: Icons.payment_rounded,          label: 'Payments',          bg: AppColors.accentLight,  ic: Color(0xFF00796B)),
+    _ActionItem(icon: Icons.email_rounded,            label: 'SMTP Settings',     bg: Color(0xFFECEFF1),      ic: Color(0xFF37474F)),
+    _ActionItem(icon: Icons.batch_prediction_rounded, label: 'Payment Batch',     bg: Color(0xFFEFEBE9),      ic: Color(0xFF4E342E)),
   ];
 
   @override
@@ -1146,7 +1313,7 @@ class _ProfileDrawer extends StatelessWidget {
       backgroundColor: AppColors.surface,
       child: SafeArea(
         child: Column(children: [
-          // ── Profile header ─────────────────────────────────────────────
+          // ── Header ────────────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
@@ -1162,10 +1329,8 @@ class _ProfileDrawer extends StatelessWidget {
                 Container(
                   width: 56, height: 56,
                   decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.accent),
-                  child: const Center(
-                    child: Text('SA',
-                        style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
-                  ),
+                  child: const Center(child: Text('SA',
+                      style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800))),
                 ),
                 const Spacer(),
                 IconButton(
@@ -1196,49 +1361,55 @@ class _ProfileDrawer extends StatelessWidget {
             ]),
           ),
 
-          // ── Scrollable body ────────────────────────────────────────────
+          // ── Scrollable content ────────────────────────────────────────────
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               children: [
 
-                // ── Quick Actions section ──────────────────────────────
-                const _DSection('Quick Actions'),
+                // ── Account Section ─────────────────────────────────────────
+                _DSection('Account'),
+                _DTile(icon: Icons.person_rounded,        label: 'My Profile',      color: AppColors.accent),
+                _DTile(icon: Icons.lock_rounded,          label: 'Change Password', color: AppColors.warning),
+                _DTile(icon: Icons.notifications_rounded, label: 'Notifications',   color: AppColors.primary, badge: '3'),
+
+                // ── Quick Actions Section ───────────────────────────────────
+                _DSection('Quick Actions'),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                        childAspectRatio: 0.80),
-                    itemCount: _quickItems.length,
-                    itemBuilder: (_, i) => _ActionTile(item: _quickItems[i]),
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.90),
+                    itemCount: _actions.length,
+                    itemBuilder: (ctx, i) => _DrawerActionTile(
+                      item: _actions[i],
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (_actions[i].isUserMgmt) {
+                          Navigator.push(ctx, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
+                        } else if (_actions[i].isRoles) {
+                          Navigator.push(ctx, MaterialPageRoute(builder: (_) => const RoleManagementScreen()));
+                        }
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
 
-                // ── Divider ────────────────────────────────────────────
-                const Divider(color: AppColors.divider, height: 1, indent: 18, endIndent: 18),
-
-                // ── Account section ────────────────────────────────────
-                const _DSection('Account'),
-                const _DTile(icon: Icons.person_rounded,        label: 'My Profile',      color: AppColors.accent),
-                const _DTile(icon: Icons.lock_rounded,          label: 'Change Password', color: AppColors.warning),
-                const _DTile(icon: Icons.notifications_rounded, label: 'Notifications',   color: AppColors.primary, badge: '3'),
-
-                // ── System section ─────────────────────────────────────
-                const _DSection('System'),
-                const _DTile(icon: Icons.settings_rounded, label: 'Settings',      color: AppColors.textMuted),
-                const _DTile(icon: Icons.help_rounded,     label: 'Help & Support', color: AppColors.success),
-                const _DTile(icon: Icons.info_rounded,     label: 'About',          color: AppColors.textMuted),
+                // ── System Section ──────────────────────────────────────────
+                _DSection('System'),
+                _DTile(icon: Icons.settings_rounded,  label: 'Settings',      color: AppColors.textMuted),
+                _DTile(icon: Icons.help_rounded,       label: 'Help & Support', color: AppColors.success),
+                _DTile(icon: Icons.info_rounded,       label: 'About',          color: AppColors.textMuted),
               ],
             ),
           ),
 
-          // ── Sign out button ────────────────────────────────────────────
+          // ── Sign Out ──────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(18),
             child: GestureDetector(
@@ -1250,12 +1421,14 @@ class _ProfileDrawer extends StatelessWidget {
                   borderRadius: BorderRadius.circular(13),
                   border: Border.all(color: AppColors.red.withOpacity(0.25), width: 0.8),
                 ),
-                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.logout_rounded, color: AppColors.red, size: 17),
-                  SizedBox(width: 8),
-                  Text('Sign Out',
-                      style: TextStyle(color: AppColors.red, fontSize: 13.5, fontWeight: FontWeight.w700)),
-                ]),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, color: AppColors.red, size: 17),
+                    SizedBox(width: 8),
+                    Text('Sign Out', style: TextStyle(color: AppColors.red, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1265,7 +1438,90 @@ class _ProfileDrawer extends StatelessWidget {
   }
 }
 
-// ─── Drawer Section Label ─────────────────────────────────────────────────────
+// ─── Drawer Action Tile ───────────────────────────────────────────────────────
+class _ActionItem {
+  final IconData icon;
+  final String label;
+  final Color bg, ic;
+  final bool isRoles, isUserMgmt;
+  const _ActionItem({
+    required this.icon, required this.label, required this.bg, required this.ic,
+    this.isRoles = false, this.isUserMgmt = false,
+  });
+}
+
+class _DrawerActionTile extends StatefulWidget {
+  final _ActionItem item;
+  final VoidCallback onTap;
+  const _DrawerActionTile({super.key, required this.item, required this.onTap});
+  @override
+  State<_DrawerActionTile> createState() => _DrawerActionTileState();
+}
+
+class _DrawerActionTileState extends State<_DrawerActionTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _c;
+  late Animation<double> _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
+    _s = Tween(begin: 1.0, end: 0.93).animate(_c);
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isSpecial = widget.item.isRoles || widget.item.isUserMgmt;
+    return GestureDetector(
+      onTapDown: (_) => _c.forward(),
+      onTapUp: (_) { _c.reverse(); widget.onTap(); },
+      onTapCancel: () => _c.reverse(),
+      child: ScaleTransition(
+        scale: _s,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSpecial
+                  ? (widget.item.isRoles ? AppColors.purple.withOpacity(0.35) : AppColors.accent.withOpacity(0.35))
+                  : AppColors.border,
+              width: isSpecial ? 1.0 : 0.7,
+            ),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2))],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(color: widget.item.bg, borderRadius: BorderRadius.circular(10)),
+                child: Icon(widget.item.icon, color: widget.item.ic, size: 19),
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  widget.item.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: const TextStyle(
+                      color: AppColors.textBody, fontSize: 9, fontWeight: FontWeight.w600, height: 1.3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Drawer Section Header ────────────────────────────────────────────────────
 class _DSection extends StatelessWidget {
   final String t;
   const _DSection(this.t);
@@ -1276,15 +1532,11 @@ class _DSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 5),
       child: Text(t.toUpperCase(),
           style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.1)),
+              color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.1)),
     );
   }
 }
 
-// ─── Drawer Menu Tile ─────────────────────────────────────────────────────────
 class _DTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1299,106 +1551,17 @@ class _DTile extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 1),
       leading: Container(
         padding: const EdgeInsets.all(7),
-        decoration: BoxDecoration(
-            color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(9)),
+        decoration: BoxDecoration(color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(9)),
         child: Icon(icon, color: color, size: 17),
       ),
-      title: Text(label,
-          style: const TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w500)),
+      title: Text(label, style: const TextStyle(color: AppColors.textBody, fontSize: 13, fontWeight: FontWeight.w500)),
       trailing: badge != null
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(color: AppColors.red, borderRadius: BorderRadius.circular(10)),
-              child: Text(badge!,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)))
+              child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)))
           : const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 17),
       onTap: () {},
-    );
-  }
-}
-
-// ─── Quick Action Data Model ──────────────────────────────────────────────────
-class _ActionItem {
-  final IconData icon;
-  final String label;
-  final Color bg, ic;
-  final bool isRoles, isUserMgmt;
-  const _ActionItem({
-    required this.icon, required this.label, required this.bg, required this.ic,
-    this.isRoles = false, this.isUserMgmt = false,
-  });
-}
-
-// ─── Quick Action Tile (used inside the drawer grid) ─────────────────────────
-class _ActionTile extends StatefulWidget {
-  final _ActionItem item;
-  const _ActionTile({super.key, required this.item});
-
-  @override
-  State<_ActionTile> createState() => _ActionTileState();
-}
-
-class _ActionTileState extends State<_ActionTile> with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  late Animation<double> _s;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
-    _s = Tween(begin: 1.0, end: 0.93).animate(_c);
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  void _handleTap(BuildContext context) {
-    if (widget.item.isUserMgmt) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
-    } else if (widget.item.isRoles) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const RoleManagementScreen()));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isSpecial = widget.item.isRoles || widget.item.isUserMgmt;
-    final Color borderColor = widget.item.isRoles
-        ? AppColors.purple.withOpacity(0.35)
-        : widget.item.isUserMgmt
-            ? AppColors.accent.withOpacity(0.35)
-            : AppColors.border;
-
-    return GestureDetector(
-      onTapDown: (_) => _c.forward(),
-      onTapUp: (_) { _c.reverse(); _handleTap(context); },
-      onTapCancel: () => _c.reverse(),
-      child: ScaleTransition(
-        scale: _s,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: isSpecial ? 1.0 : 0.7),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2))],
-          ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: widget.item.bg, borderRadius: BorderRadius.circular(9)),
-              child: Icon(widget.item.icon, color: widget.item.ic, size: 18),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(widget.item.label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: AppColors.textBody, fontSize: 9, fontWeight: FontWeight.w600, height: 1.3)),
-            ),
-          ]),
-        ),
-      ),
     );
   }
 }

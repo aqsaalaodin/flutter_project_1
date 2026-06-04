@@ -1,18 +1,61 @@
 import 'package:flutter/material.dart';
-//import 'package:flutter_project_1/UserManagementScreen.dart';
+import 'package:flutter_project_1/NotificationService.dart';
 import 'package:flutter_project_1/dashboardscreen.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-//import 'package:student_management_system/CreateUserScreen.dart';
-//import 'package:student_management_system/UserManagementScreen.dart';
-//import 'package:student_management_system/HomeScreen.dart';
+// ✅ Top-level — class ke bahar zaroori hai
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {}
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  await NotificationService.init(
+    onBackground: notificationTapBackground,
+  );
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  bool _scheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleIfNeeded();
+    }
+  }
+
+  void _scheduleIfNeeded() async {
+    if (!_scheduled) {
+      _scheduled = true;
+      await NotificationService.scheduleAll();
+      Future.delayed(const Duration(seconds: 35), () {
+        if (mounted) setState(() => _scheduled = false);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,4 +65,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
