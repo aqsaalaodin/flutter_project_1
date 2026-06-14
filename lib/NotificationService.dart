@@ -37,31 +37,31 @@ class NotificationService {
     await _plugin.cancelAll();
 
     final List<Map<String, String>> notifications = [
-      {
-        'title': '💎 Naya Diamond Paint Design!',
-        'body': 'Aaj ka featured design check karein - Limited time offer!'
-      },
-      {
-        'title': '🎨 Aapka Order Ready Hai!',
-        'body': 'Aapka diamond paint kit dispatch ho gaya. Track karein!'
-      },
-      {
-        'title': '⭐ Flash Sale - 30% Off!',
-        'body': 'Sirf aaj! Tamam diamond paint kits pe badi chhutt.'
-      },
-      {
-        'title': '🖼️ New Collection Aayi!',
-        'body': 'Winter 2024 collection ab available hai. Dekhein abhi!'
-      },
-      {
-        'title': '💡 Tip of the Day',
-        'body': 'Diamond painting mein round drills beginners ke liye best hain!'
-      },
-      {
-        'title': '🏆 Complete Your Order!',
-        'body': 'Aapke cart mein items hain. Complete karein aur save karein!'
-      },
-    ];
+  {
+    'title': '💎 New Diamond Paint Design!',
+    'body': 'Check out today\'s featured design - Limited time offer!'
+  },
+  {
+    'title': '🎨 Your Order is Ready!',
+    'body': 'Your diamond paint kit has been dispatched. Track it now!'
+  },
+  {
+    'title': '⭐ Flash Sale - 30% Off!',
+    'body': 'Today only! Huge discounts on all diamond paint kits.'
+  },
+  {
+    'title': '🖼️ New Collection Arrived!',
+    'body': 'The Winter 2024 collection is now available. Explore it today!'
+  },
+  {
+    'title': '💡 Tip of the Day',
+    'body': 'Round drills are the best choice for beginners in diamond painting!'
+  },
+  {
+    'title': '🏆 Complete Your Order!',
+    'body': 'You have items waiting in your cart. Complete your purchase and save!'
+  },
+];
 
     const NotificationDetails details = NotificationDetails(
       android: AndroidNotificationDetails(
