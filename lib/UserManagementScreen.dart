@@ -3,23 +3,15 @@ import 'package:flutter_project_1/CreateUserScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// ─── Reuses AppColors from main.dart ─────────────────────────────────────────
-// Import or copy AppColors here if needed; using the same tokens for consistency.
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
-  // Backgrounds
   static const bg         = Color(0xFFF5F7FA);
   static const surface    = Color(0xFFFFFFFF);
   static const surfaceAlt = Color(0xFFF0F4F9);
-
-  // Brand — Deep Navy (matches dashboard primary)
   static const primary    = Color(0xFF1A2B4A);
   static const primaryMid = Color(0xFF243B5E);
-
-  // Accent — iOS Blue (matches dashboard accent)
   static const accent      = Color(0xFF3B7DD8);
   static const accentLight = Color(0xFFEBF3FF);
-
-  // Semantic
   static const red          = Color(0xFFE53935);
   static const redLight     = Color(0xFFFFEBEE);
   static const warning      = Color(0xFFF57F17);
@@ -28,84 +20,113 @@ class _C {
   static const successLight = Color(0xFFE0F2F1);
   static const purple       = Color(0xFF5C35B5);
   static const purpleLight  = Color(0xFFEFEBFA);
-
-  // Text
   static const textHead  = Color(0xFF1A2B4A);
   static const textBody  = Color(0xFF3A4A5C);
   static const textMuted = Color(0xFF8A9BB5);
-
-  // Chrome
   static const border  = Color(0xFFE2E8F0);
   static const divider = Color(0xFFEDF2F7);
-
-  // Input
   static const inputFill = Color(0xFFF0F4F9);
 }
 
-// ─── Token Manager ────────────────────────────────────────────────────────────
+// ─── Token Manager — Auto Login, No Hardcoded Token ──────────────────────────
+// Credentials se fresh token leta hai, expire hone par dobara login karta hai
 class _TokenManager {
   static String? _cachedToken;
   static DateTime? _tokenExpiry;
 
-  static const _loginUrl      = "http://125.209.66.147:5001/api/auth/login";
-  static const _loginUsername = "superadmin";
-  static const _loginPassword = "superadmin";
+  // ── API base + login credentials ──────────────────────────────────────────
+  static const _baseUrl  = "http://125.209.66.147:5001/api";
+  static const _username = "superadmin";
+  static const _password = "admin123";
 
-  static const _fallbackToken =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc4MTI3Mzg4OCwiZXhwIjoxNzgxODc4Njg4fQ.86O2eBhYdAjmXrQhyrkgH80LPXQju9sRxMEepreDdlA";
-
+  /// Token lo — cached hai to wahi, expire ho to fresh login
   static Future<String> getToken() async {
+    // Agar valid cached token hai (5 min buffer ke saath) to wahi do
     if (_cachedToken != null &&
         _tokenExpiry != null &&
         DateTime.now().isBefore(
             _tokenExpiry!.subtract(const Duration(minutes: 5)))) {
       return _cachedToken!;
     }
-    final fresh = await _loginAndGetToken();
-    if (fresh != null) return fresh;
-    _cachedToken = _fallbackToken;
-    _tokenExpiry = _parseExpiry(_fallbackToken) ??
-        DateTime.now().add(const Duration(hours: 1));
-    return _fallbackToken;
+    // Warna fresh login
+    return await _login();
   }
 
-  static Future<String?> _loginAndGetToken() async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse(_loginUrl),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "username": _loginUsername,
-              "password": _loginPassword,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final t = data['token'] ??
-            data['access_token'] ??
-            data['accessToken'] ??
-            data['data']?['token'] ??
-            data['data']?['access_token'];
-        if (t != null) {
-          _cachedToken = t.toString();
-          _tokenExpiry = _parseExpiry(_cachedToken!) ??
-              DateTime.now().add(const Duration(hours: 7));
-          return _cachedToken;
+  /// Token invalid karo (401 aane par)
+  static void invalidate() {
+    _cachedToken = null;
+    _tokenExpiry = null;
+  }
+
+  /// Login API call — token fetch karo
+  static Future<String> _login() async {
+    // Pehle usernameOrEmail field try karo (tumhara Postman format)
+    final bodies = [
+      jsonEncode({"usernameOrEmail": _username, "password": _password}),
+      jsonEncode({"username": _username, "password": _password}),
+      jsonEncode({"email": _username, "password": _password}),
+    ];
+
+    // Common login endpoint patterns
+    final endpoints = [
+      "$_baseUrl/auth/login",
+      "$_baseUrl/auth/signin",
+      "$_baseUrl/login",
+      "$_baseUrl/users/login",
+    ];
+
+    for (final endpoint in endpoints) {
+      for (final body in bodies) {
+        try {
+          final response = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {"Content-Type": "application/json"},
+                body: body,
+              )
+              .timeout(const Duration(seconds: 10));
+
+          print("Login attempt: $endpoint → ${response.statusCode}");
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            final data = jsonDecode(response.body);
+            // Common token field names cover karo
+            final token = data['token']
+                ?? data['accessToken']
+                ?? data['access_token']
+                ?? data['data']?['token']
+                ?? data['data']?['accessToken']
+                ?? data['data']?['access_token']
+                ?? data['result']?['token'];
+
+            if (token != null) {
+              _cachedToken = token.toString();
+              _tokenExpiry = _parseExpiry(_cachedToken!) ??
+                  DateTime.now().add(const Duration(hours: 7));
+              print("Login success ✓  expires: $_tokenExpiry");
+              return _cachedToken!;
+            }
+          }
+        } catch (_) {
+          continue;
         }
       }
-    } catch (_) {}
-    return null;
+    }
+    throw Exception(
+        "Login failed: could not get token from server. Check credentials or API endpoint.");
   }
 
+  /// JWT payload se expiry parse karo
   static DateTime? _parseExpiry(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
       var payload = parts[1];
-      while (payload.length % 4 != 0) payload += '=';
-      final decoded = jsonDecode(utf8.decode(base64Url.decode(payload)));
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final decoded =
+          jsonDecode(utf8.decode(base64Url.decode(payload)));
       final exp = decoded['exp'];
       if (exp != null) {
         return DateTime.fromMillisecondsSinceEpoch((exp as int) * 1000);
@@ -114,9 +135,20 @@ class _TokenManager {
     return null;
   }
 
-  static void invalidate() {
-    _cachedToken = null;
-    _tokenExpiry = null;
+  /// Auth headers — har request mein use karo
+  static Future<Map<String, String>> authHeaders() async {
+    final token = await getToken();
+    return {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json",
+    };
+  }
+
+  /// 401 aane par token refresh kar ke retry karo
+  /// Returns new headers with fresh token
+  static Future<Map<String, String>> refreshAndGetHeaders() async {
+    invalidate();
+    return await authHeaders();
   }
 }
 
@@ -145,9 +177,9 @@ class UserModel {
     String parsedRole = '-';
     if (json['role'] is Map) {
       parsedRole   = json['role']['name'] ?? json['role']['roleName'] ?? '-';
-      parsedRoleId = json['role']['id'] ?? json['role']['roleId'];
+      parsedRoleId = json['role']['id']   ?? json['role']['roleId'];
     } else {
-      parsedRole   = json['role'] ?? json['roleName'] ?? '-';
+      parsedRole   = json['role']?.toString() ?? json['roleName']?.toString() ?? '-';
       parsedRoleId = json['roleId'] ?? json['role_id'];
     }
     return UserModel(
@@ -159,6 +191,75 @@ class UserModel {
       createdAt: json['created_at'] ?? json['createdAt'] ?? '-',
       isActive:  json['is_active'] ?? json['isActive'] ?? true,
     );
+  }
+}
+
+// ─── API Helper — with auto-retry on 401 ─────────────────────────────────────
+class _Api {
+  static const _base = "http://125.209.66.147:5001/api";
+
+  static Future<http.Response> get(String path) async {
+    var headers = await _TokenManager.authHeaders();
+    var response = await http
+        .get(Uri.parse("$_base$path"), headers: headers)
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      headers  = await _TokenManager.refreshAndGetHeaders();
+      response = await http
+          .get(Uri.parse("$_base$path"), headers: headers)
+          .timeout(const Duration(seconds: 15));
+    }
+    return response;
+  }
+
+  static Future<http.Response> post(String path, Map<String, dynamic> body) async {
+    var headers = await _TokenManager.authHeaders();
+    var response = await http
+        .post(Uri.parse("$_base$path"),
+            headers: headers, body: jsonEncode(body))
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      headers  = await _TokenManager.refreshAndGetHeaders();
+      response = await http
+          .post(Uri.parse("$_base$path"),
+              headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 15));
+    }
+    return response;
+  }
+
+  static Future<http.Response> put(String path, Map<String, dynamic> body) async {
+    var headers = await _TokenManager.authHeaders();
+    var response = await http
+        .put(Uri.parse("$_base$path"),
+            headers: headers, body: jsonEncode(body))
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      headers  = await _TokenManager.refreshAndGetHeaders();
+      response = await http
+          .put(Uri.parse("$_base$path"),
+              headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 15));
+    }
+    return response;
+  }
+
+  static Future<http.Response> delete(String path) async {
+    var headers = await _TokenManager.authHeaders();
+    var response = await http
+        .delete(Uri.parse("$_base$path"), headers: headers)
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      headers  = await _TokenManager.refreshAndGetHeaders();
+      response = await http
+          .delete(Uri.parse("$_base$path"), headers: headers)
+          .timeout(const Duration(seconds: 15));
+    }
+    return response;
   }
 }
 
@@ -206,63 +307,39 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   }
 
   Future<void> fetchUsers() async {
-    setState(() {
-      isLoading    = true;
-      errorMessage = null;
-    });
+    setState(() { isLoading = true; errorMessage = null; });
 
-    final token = await _TokenManager.getToken();
-    final headers = {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    };
-
-    final urlsToTry = [
-      "http://125.209.66.147:5001/api/users?page=1&size=100",
-      "http://125.209.66.147:5001/api/users?page=0&size=100",
-      "http://125.209.66.147:5001/api/users",
+    // Try different pagination param formats
+    final paths = [
+      "/users?page=1&size=100",
+      "/users?page=0&size=100",
+      "/users?limit=100",
+      "/users",
     ];
 
-    for (final urlStr in urlsToTry) {
+    for (final path in paths) {
       try {
-        final response = await http
-            .get(Uri.parse(urlStr), headers: headers)
-            .timeout(const Duration(seconds: 15));
+        final response = await _Api.get(path);
+        print("Fetch users [$path]: ${response.statusCode}");
 
-        if (response.statusCode == 401) {
-          _TokenManager.invalidate();
-          final newToken = await _TokenManager.getToken();
-          if (newToken == null) break;
-          final retry = await http
-              .get(Uri.parse(urlStr), headers: {
-                "Authorization": "Bearer $newToken",
-                "Content-Type": "application/json",
-              })
-              .timeout(const Duration(seconds: 15));
-          if (retry.statusCode == 200) {
-            final ok = _parseAndApply(retry.body);
-            if (ok) return;
-          }
-          continue;
-        }
-
-        if (response.statusCode == 204 ||
-            response.statusCode == 304 ||
-            response.body.trim().isEmpty) continue;
+        if (response.statusCode == 204 || response.body.trim().isEmpty) continue;
 
         if (response.statusCode == 200) {
           final ok = _parseAndApply(response.body);
           if (ok) return;
         }
-      } catch (_) {
+      } catch (e) {
+        print("Fetch error [$path]: $e");
         continue;
       }
     }
 
-    setState(() {
-      isLoading    = false;
-      errorMessage = "Could not load users. Tap refresh to try again.";
-    });
+    if (mounted) {
+      setState(() {
+        isLoading    = false;
+        errorMessage = "Could not load users. Tap refresh to try again.";
+      });
+    }
   }
 
   bool _parseAndApply(String body) {
@@ -275,22 +352,24 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         rawList = decoded['data']    ??
                   decoded['users']   ??
                   decoded['content'] ??
-                  decoded['items']   ?? [];
+                  decoded['items']   ??
+                  decoded['results'] ?? [];
       }
       if (rawList.isEmpty) return false;
       final parsed = rawList
           .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (!mounted) return false;
       setState(() {
         allUsers     = parsed;
         _currentPage = 1;
-        final total  = allUsers.length;
-        _totalPages  = (total / _pageSize).ceil().clamp(1, 9999);
-        users        = allUsers.sublist(0, _pageSize.clamp(0, total));
+        _totalPages  = (allUsers.length / _pageSize).ceil().clamp(1, 9999);
+        users        = allUsers.sublist(0, _pageSize.clamp(0, allUsers.length));
         isLoading    = false;
       });
       return true;
-    } catch (_) {
+    } catch (e) {
+      print("Parse error: $e");
       return false;
     }
   }
@@ -347,7 +426,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  // ── Stat counts ─────────────────────────────────────────────────────────────
   int get _activeCount   => allUsers.where((u) => u.isActive).length;
   int get _inactiveCount => allUsers.where((u) => !u.isActive).length;
 
@@ -370,15 +448,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         ),
         title: Row(
           children: [
-            // Diamond logo badge — matches dashboard TopBar
             Container(
               width: 30, height: 30,
               decoration: const BoxDecoration(
-                color: _C.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.diamond,
-                  color: Colors.white, size: 16),
+                  color: _C.primary, shape: BoxShape.circle),
+              child: const Icon(Icons.diamond, color: Colors.white, size: 16),
             ),
             const SizedBox(width: 10),
             const Column(
@@ -404,25 +478,18 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           child: Container(height: 0.5, color: _C.border),
         ),
         actions: [
-          // Refresh button
-          _AppBarIconBtn(
-            icon: Icons.refresh_rounded,
-            onTap: fetchUsers,
-          ),
+          _AppBarIconBtn(icon: Icons.refresh_rounded, onTap: fetchUsers),
           const SizedBox(width: 8),
-          // Create button — opens CreateUserScreen as a dialog
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: _CreateButton(
               onTap: () async {
-                // ── CHANGED: showDialog instead of Navigator.push ──────────
                 await showDialog(
                   context: context,
                   barrierDismissible: false,
                   barrierColor: Colors.black.withOpacity(0.35),
                   builder: (_) => const CreateUserScreen(),
                 );
-                // ─────────────────────────────────────────────────────────────
                 fetchUsers();
               },
             ),
@@ -439,7 +506,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Page heading
                 const Text("User management",
                     style: TextStyle(
                         fontSize: 20,
@@ -447,12 +513,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         color: _C.textHead)),
                 const SizedBox(height: 2),
                 const Text("Manage your team members and their access",
-                    style: TextStyle(
-                        fontSize: 12, color: _C.textMuted)),
-
+                    style: TextStyle(fontSize: 12, color: _C.textMuted)),
                 const SizedBox(height: 14),
 
-                // Stats row — matches dashboard _StatsRow
+                // Stats
                 if (!isLoading)
                   Row(children: [
                     Expanded(
@@ -462,7 +526,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         value: "${allUsers.length}",
                         iconColor: _C.accent,
                         iconBg: _C.accentLight,
-                        trend: "+4 this week",
+                        trend: "All members",
                         trendColor: _C.accent,
                       ),
                     ),
@@ -507,63 +571,56 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                           color: _C.red.withOpacity(0.25), width: 1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded,
-                            color: _C.red, size: 17),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(errorMessage!,
-                              style: const TextStyle(
-                                  color: Color(0xFFB71C1C),
-                                  fontSize: 12.5)),
-                        ),
-                      ],
-                    ),
+                    child: Row(children: [
+                      const Icon(Icons.warning_amber_rounded,
+                          color: _C.red, size: 17),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(errorMessage!,
+                            style: const TextStyle(
+                                color: Color(0xFFB71C1C), fontSize: 12.5)),
+                      ),
+                    ]),
                   ),
 
-                // Section label row
-                Row(
-                  children: [
-                    const Icon(Icons.people_alt_rounded,
-                        size: 15, color: _C.accent),
-                    const SizedBox(width: 6),
-                    const Text("All users",
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _C.textHead)),
-                    const SizedBox(width: 8),
-                    if (!isLoading && allUsers.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _C.accentLight,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text("${allUsers.length}",
-                            style: const TextStyle(
-                                color: _C.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
+                // Section label
+                Row(children: [
+                  const Icon(Icons.people_alt_rounded,
+                      size: 15, color: _C.accent),
+                  const SizedBox(width: 6),
+                  const Text("All users",
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _C.textHead)),
+                  const SizedBox(width: 8),
+                  if (!isLoading && allUsers.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _C.accentLight,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                  ],
-                ),
+                      child: Text("${allUsers.length}",
+                          style: const TextStyle(
+                              color: _C.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                ]),
                 const SizedBox(height: 10),
 
-                // Table / card list
                 isMobile ? _buildMobileList() : _buildDesktopTable(),
 
-                // Pagination
                 if (!isLoading && allUsers.isNotEmpty)
                   _PaginationFooter(
-                    currentPage:       _currentPage,
-                    totalPages:        _totalPages,
-                    totalItems:        allUsers.length,
-                    pageSize:          _pageSize,
-                    pageSizeOptions:   _pageSizeOptions,
-                    onPageChanged:     _goToPage,
+                    currentPage: _currentPage,
+                    totalPages: _totalPages,
+                    totalItems: allUsers.length,
+                    pageSize: _pageSize,
+                    pageSizeOptions: _pageSizeOptions,
+                    onPageChanged: _goToPage,
                     onPageSizeChanged: (size) {
                       setState(() {
                         _pageSize    = size;
@@ -580,7 +637,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ── Mobile card list ───────────────────────────────────────────────────────
   Widget _buildMobileList() {
     if (isLoading) return _loadingWidget();
     if (users.isEmpty) return _emptyWidget();
@@ -598,7 +654,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ── Desktop table ──────────────────────────────────────────────────────────
   Widget _buildDesktopTable() {
     return Container(
       decoration: BoxDecoration(
@@ -616,10 +671,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         borderRadius: BorderRadius.circular(14),
         child: Column(
           children: [
-            // Header
             Container(
-              padding: const EdgeInsets.symmetric(
-                  vertical: 11, horizontal: 14),
+              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
               color: _C.surfaceAlt,
               child: Row(
                 children: const [
@@ -634,7 +687,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               ),
             ),
             Container(height: 0.5, color: _C.border),
-
             if (isLoading)
               _loadingWidget()
             else if (users.isEmpty)
@@ -644,13 +696,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: users.length,
-                itemBuilder: (_, i) => Column(
-                  children: [
-                    _buildRow(users[i]),
-                    if (i != users.length - 1)
-                      Container(height: 0.5, color: _C.divider),
-                  ],
-                ),
+                itemBuilder: (_, i) => Column(children: [
+                  _buildRow(users[i]),
+                  if (i != users.length - 1)
+                    Container(height: 0.5, color: _C.divider),
+                ]),
               ),
           ],
         ),
@@ -662,61 +712,52 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     return _HoverableRow(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 14),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: Text("#${user.id}",
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: _C.textMuted,
-                      fontWeight: FontWeight.w500)),
-            ),
-            Expanded(
-              flex: 2,
-              child: Row(
-                children: [
-                  _Avatar(username: user.username),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(user.username,
-                        style: const TextStyle(
-                            fontSize: 12.5,
-                            color: _C.textHead,
-                            fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
+        child: Row(children: [
+          Expanded(
+            flex: 1,
+            child: Text("#${user.id}",
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: _C.textMuted,
+                    fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(children: [
+              _Avatar(username: user.username),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(user.username,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _C.textHead,
+                        fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis),
               ),
+            ]),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(user.email,
+                style: const TextStyle(fontSize: 12, color: _C.textMuted),
+                overflow: TextOverflow.ellipsis),
+          ),
+          Expanded(flex: 2, child: _RoleChip(role: user.role)),
+          Expanded(flex: 2, child: _StatusChip(isActive: user.isActive)),
+          Expanded(
+            flex: 2,
+            child: Text(user.createdAt,
+                style: const TextStyle(fontSize: 11, color: _C.textMuted)),
+          ),
+          Expanded(
+            flex: 2,
+            child: _ActionButtons(
+              onView:   () => _openViewDialog(user),
+              onEdit:   () => _openEditDialog(user),
+              onDelete: () => _openDeleteDialog(user),
             ),
-            Expanded(
-              flex: 3,
-              child: Text(user.email,
-                  style: const TextStyle(
-                      fontSize: 12, color: _C.textMuted),
-                  overflow: TextOverflow.ellipsis),
-            ),
-            Expanded(flex: 2, child: _RoleChip(role: user.role)),
-            Expanded(
-              flex: 2,
-              child: _StatusChip(isActive: user.isActive),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(user.createdAt,
-                  style: const TextStyle(
-                      fontSize: 11, color: _C.textMuted)),
-            ),
-            Expanded(
-              flex: 2,
-              child: _ActionButtons(
-                onView:   () => _openViewDialog(user),
-                onEdit:   () => _openEditDialog(user),
-                onDelete: () => _openDeleteDialog(user),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
@@ -726,8 +767,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         child: Center(
           child: SizedBox(
             width: 24, height: 24,
-            child: CircularProgressIndicator(
-                color: _C.accent, strokeWidth: 2),
+            child: CircularProgressIndicator(color: _C.accent, strokeWidth: 2),
           ),
         ),
       );
@@ -742,7 +782,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-// Matches dashboard _StatCard exactly
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label, value, trend;
@@ -783,15 +822,11 @@ class _StatCard extends StatelessWidget {
         const SizedBox(height: 9),
         Text(value,
             style: const TextStyle(
-                color: _C.textHead,
-                fontSize: 22,
-                fontWeight: FontWeight.w800)),
+                color: _C.textHead, fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 1),
         Text(label,
             style: const TextStyle(
-                color: _C.textMuted,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w500)),
+                color: _C.textMuted, fontSize: 9.5, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
         Text(trend,
             style: TextStyle(
@@ -806,7 +841,6 @@ class _Avatar extends StatelessWidget {
   final String username;
   const _Avatar({required this.username});
 
-  // Cycle through accent colors per first letter — matches dashboard style
   Color _bgColor() {
     final colors = [
       _C.accentLight, _C.purpleLight, _C.successLight,
@@ -828,10 +862,7 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 28, height: 28,
-      decoration: BoxDecoration(
-        color: _bgColor(),
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: _bgColor(), shape: BoxShape.circle),
       child: Center(
         child: Text(
           username.isNotEmpty ? username[0].toUpperCase() : "U",
@@ -848,11 +879,12 @@ class _Avatar extends StatelessWidget {
 // ─── Mobile User Card ─────────────────────────────────────────────────────────
 class _MobileUserCard extends StatelessWidget {
   final UserModel user;
-  final VoidCallback onView;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onView, onEdit, onDelete;
   const _MobileUserCard(
-      {required this.user, required this.onView, required this.onEdit, required this.onDelete});
+      {required this.user,
+      required this.onView,
+      required this.onEdit,
+      required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -869,77 +901,72 @@ class _MobileUserCard extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            _Avatar(username: user.username),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(user.username,
-                      style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: _C.textHead)),
-                  Text("ID #${user.id}",
-                      style: const TextStyle(
-                          fontSize: 10.5, color: _C.textMuted)),
-                ],
-              ),
-            ),
-            _StatusChip(isActive: user.isActive),
-          ]),
-          const SizedBox(height: 11),
-          Container(height: 0.5, color: _C.divider),
-          const SizedBox(height: 11),
-          _CardRow(icon: Icons.email_outlined, label: "Email", value: user.email),
-          const SizedBox(height: 7),
-          Row(children: [
-            const Icon(Icons.shield_outlined, size: 13, color: _C.textMuted),
-            const SizedBox(width: 6),
-            const Text("Role ",
-                style: TextStyle(
-                    fontSize: 11, color: _C.textMuted, fontWeight: FontWeight.w500)),
-            _RoleChip(role: user.role),
-          ]),
-          const SizedBox(height: 7),
-          _CardRow(
-              icon: Icons.calendar_today_outlined,
-              label: "Created",
-              value: user.createdAt),
-          const SizedBox(height: 11),
-          Container(height: 0.5, color: _C.divider),
-          const SizedBox(height: 11),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _MobileActBtn(
-                  icon: Icons.visibility_outlined,
-                  label: "View",
-                  color: _C.success,
-                  bg: _C.successLight,
-                  onTap: onView),
-              const SizedBox(width: 7),
-              _MobileActBtn(
-                  icon: Icons.edit_outlined,
-                  label: "Edit",
-                  color: _C.accent,
-                  bg: _C.accentLight,
-                  onTap: onEdit),
-              const SizedBox(width: 7),
-              _MobileActBtn(
-                  icon: Icons.delete_outline_rounded,
-                  label: "Delete",
-                  color: _C.red,
-                  bg: _C.redLight,
-                  onTap: onDelete),
-            ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          _Avatar(username: user.username),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(user.username,
+                  style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: _C.textHead)),
+              Text("ID #${user.id}",
+                  style: const TextStyle(fontSize: 10.5, color: _C.textMuted)),
+            ]),
           ),
-        ],
-      ),
+          _StatusChip(isActive: user.isActive),
+        ]),
+        const SizedBox(height: 11),
+        Container(height: 0.5, color: _C.divider),
+        const SizedBox(height: 11),
+        _CardRow(icon: Icons.email_outlined, label: "Email", value: user.email),
+        const SizedBox(height: 7),
+        Row(children: [
+          const Icon(Icons.shield_outlined, size: 13, color: _C.textMuted),
+          const SizedBox(width: 6),
+          const Text("Role ",
+              style: TextStyle(
+                  fontSize: 11,
+                  color: _C.textMuted,
+                  fontWeight: FontWeight.w500)),
+          _RoleChip(role: user.role),
+        ]),
+        const SizedBox(height: 7),
+        _CardRow(
+            icon: Icons.calendar_today_outlined,
+            label: "Created",
+            value: user.createdAt),
+        const SizedBox(height: 11),
+        Container(height: 0.5, color: _C.divider),
+        const SizedBox(height: 11),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _MobileActBtn(
+                icon: Icons.visibility_outlined,
+                label: "View",
+                color: _C.success,
+                bg: _C.successLight,
+                onTap: onView),
+            const SizedBox(width: 7),
+            _MobileActBtn(
+                icon: Icons.edit_outlined,
+                label: "Edit",
+                color: _C.accent,
+                bg: _C.accentLight,
+                onTap: onEdit),
+            const SizedBox(width: 7),
+            _MobileActBtn(
+                icon: Icons.delete_outline_rounded,
+                label: "Delete",
+                color: _C.red,
+                bg: _C.redLight,
+                onTap: onDelete),
+          ],
+        ),
+      ]),
     );
   }
 }
@@ -947,29 +974,25 @@ class _MobileUserCard extends StatelessWidget {
 class _CardRow extends StatelessWidget {
   final IconData icon;
   final String label, value;
-  const _CardRow(
-      {required this.icon, required this.label, required this.value});
+  const _CardRow({required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 13, color: _C.textMuted),
-        const SizedBox(width: 5),
-        Text("$label: ",
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 13, color: _C.textMuted),
+      const SizedBox(width: 5),
+      Text("$label: ",
+          style: const TextStyle(
+              fontSize: 11, color: _C.textMuted, fontWeight: FontWeight.w500)),
+      Expanded(
+        child: Text(value,
             style: const TextStyle(
-                fontSize: 11,
-                color: _C.textMuted,
-                fontWeight: FontWeight.w500)),
-        Expanded(
-          child: Text(value,
-              style: const TextStyle(
-                  fontSize: 11.5, color: _C.textBody, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis),
-        ),
-      ],
-    );
+                fontSize: 11.5,
+                color: _C.textBody,
+                fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis),
+      ),
+    ]);
   }
 }
 
@@ -996,16 +1019,13 @@ class _MobileActBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withOpacity(0.20), width: 0.7),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: color),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-          ],
-        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ]),
       ),
     );
   }
@@ -1090,7 +1110,6 @@ class _AppBarIconBtnState extends State<_AppBarIconBtn> {
 }
 
 // ─── Create Button ────────────────────────────────────────────────────────────
-// Accent blue — matches dashboard action buttons
 class _CreateButton extends StatefulWidget {
   final VoidCallback onTap;
   const _CreateButton({required this.onTap});
@@ -1106,10 +1125,7 @@ class _CreateButtonState extends State<_CreateButton> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
+      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
@@ -1148,20 +1164,21 @@ class _RoleChip extends StatelessWidget {
   final String role;
   const _RoleChip({required this.role});
 
-  // Color scheme keyed to role name
   Color _bg() {
     final r = role.toLowerCase();
-    if (r.contains('super')) return _C.purpleLight;
-    if (r.contains('admin')) return _C.accentLight;
-    if (r.contains('manag')) return _C.successLight;
+    if (r.contains('super'))  return _C.purpleLight;
+    if (r.contains('admin'))  return _C.accentLight;
+    if (r.contains('manag'))  return _C.successLight;
+    if (r.contains('vendor')) return _C.warningLight;
     return _C.surfaceAlt;
   }
 
   Color _fg() {
     final r = role.toLowerCase();
-    if (r.contains('super')) return _C.purple;
-    if (r.contains('admin')) return _C.accent;
-    if (r.contains('manag')) return _C.success;
+    if (r.contains('super'))  return _C.purple;
+    if (r.contains('admin'))  return _C.accent;
+    if (r.contains('manag'))  return _C.success;
+    if (r.contains('vendor')) return _C.warning;
     return _C.textBody;
   }
 
@@ -1194,54 +1211,44 @@ class _StatusChip extends StatelessWidget {
         color: isActive ? _C.successLight : _C.redLight,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isActive
-              ? _C.success.withOpacity(0.2)
-              : _C.red.withOpacity(0.2),
+          color: isActive ? _C.success.withOpacity(0.2) : _C.red.withOpacity(0.2),
           width: 0.7,
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6, height: 6,
-            decoration: BoxDecoration(
-                color: isActive ? _C.success : _C.red,
-                shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            isActive ? "Active" : "Inactive",
-            style: TextStyle(
-                color: isActive
-                    ? const Color(0xFF085041)
-                    : const Color(0xFFB71C1C),
-                fontSize: 11,
-                fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 6, height: 6,
+          decoration: BoxDecoration(
+              color: isActive ? _C.success : _C.red,
+              shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          isActive ? "Active" : "Inactive",
+          style: TextStyle(
+              color: isActive
+                  ? const Color(0xFF085041)
+                  : const Color(0xFFB71C1C),
+              fontSize: 11,
+              fontWeight: FontWeight.w600),
+        ),
+      ]),
     );
   }
 }
 
 // ─── Action Buttons ───────────────────────────────────────────────────────────
 class _ActionButtons extends StatelessWidget {
-  final VoidCallback? onView;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
+  final VoidCallback? onView, onEdit, onDelete;
   const _ActionButtons({this.onView, this.onEdit, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _ActIcon(icon: Icons.visibility_outlined,    hoverColor: _C.success, bg: _C.successLight, onTap: onView),
-        _ActIcon(icon: Icons.edit_outlined,          hoverColor: _C.accent,  bg: _C.accentLight,  onTap: onEdit),
-        _ActIcon(icon: Icons.delete_outline_rounded, hoverColor: _C.red,     bg: _C.redLight,     onTap: onDelete),
-      ],
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      _ActIcon(icon: Icons.visibility_outlined,    hoverColor: _C.success, bg: _C.successLight, onTap: onView),
+      _ActIcon(icon: Icons.edit_outlined,          hoverColor: _C.accent,  bg: _C.accentLight,  onTap: onEdit),
+      _ActIcon(icon: Icons.delete_outline_rounded, hoverColor: _C.red,     bg: _C.redLight,     onTap: onDelete),
+    ]);
   }
 }
 
@@ -1249,8 +1256,7 @@ class _ActIcon extends StatefulWidget {
   final IconData icon;
   final Color hoverColor, bg;
   final VoidCallback? onTap;
-  const _ActIcon(
-      {required this.icon, required this.hoverColor, required this.bg, this.onTap});
+  const _ActIcon({required this.icon, required this.hoverColor, required this.bg, this.onTap});
 
   @override
   State<_ActIcon> createState() => _ActIconState();
@@ -1331,67 +1337,57 @@ class _PaginationFooter extends StatelessWidget {
         ],
       ),
       child: Column(children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                    fontSize: 12, color: _C.textMuted),
-                children: [
-                  const TextSpan(text: "Showing "),
-                  TextSpan(
-                      text: "$startItem–$endItem",
-                      style: const TextStyle(
-                          color: _C.textHead,
-                          fontWeight: FontWeight.w700)),
-                  const TextSpan(text: " of "),
-                  TextSpan(
-                      text: "$totalItems",
-                      style: const TextStyle(
-                          color: _C.textHead,
-                          fontWeight: FontWeight.w700)),
-                  const TextSpan(text: " users"),
-                ],
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 12, color: _C.textMuted),
+              children: [
+                const TextSpan(text: "Showing "),
+                TextSpan(
+                    text: "$startItem–$endItem",
+                    style: const TextStyle(
+                        color: _C.textHead, fontWeight: FontWeight.w700)),
+                const TextSpan(text: " of "),
+                TextSpan(
+                    text: "$totalItems",
+                    style: const TextStyle(
+                        color: _C.textHead, fontWeight: FontWeight.w700)),
+                const TextSpan(text: " users"),
+              ],
+            ),
+          ),
+          Row(children: [
+            const Text("Rows:", style: TextStyle(fontSize: 11.5, color: _C.textMuted)),
+            const SizedBox(width: 7),
+            Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: _C.surfaceAlt,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: _C.border, width: 0.7),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: pageSize,
+                  isDense: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 15, color: _C.textMuted),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: _C.textHead,
+                      fontWeight: FontWeight.w600),
+                  borderRadius: BorderRadius.circular(9),
+                  items: pageSizeOptions
+                      .map((s) =>
+                          DropdownMenuItem(value: s, child: Text("$s")))
+                      .toList(),
+                  onChanged: (v) { if (v != null) onPageSizeChanged(v); },
+                ),
               ),
             ),
-            Row(children: [
-              const Text("Rows:",
-                  style: TextStyle(
-                      fontSize: 11.5, color: _C.textMuted)),
-              const SizedBox(width: 7),
-              Container(
-                height: 30,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: _C.surfaceAlt,
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: _C.border, width: 0.7),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: pageSize,
-                    isDense: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 15, color: _C.textMuted),
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: _C.textHead,
-                        fontWeight: FontWeight.w600),
-                    borderRadius: BorderRadius.circular(9),
-                    items: pageSizeOptions
-                        .map((s) => DropdownMenuItem(
-                            value: s, child: Text("$s")))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) onPageSizeChanged(v);
-                    },
-                  ),
-                ),
-              ),
-            ]),
-          ],
-        ),
+          ]),
+        ]),
         const SizedBox(height: 10),
         Container(height: 0.5, color: _C.border),
         const SizedBox(height: 10),
@@ -1441,11 +1437,7 @@ class _PgBtn extends StatefulWidget {
   final String label;
   final bool isActive, isDisabled;
   final VoidCallback onTap;
-  const _PgBtn(
-      {required this.label,
-      required this.isActive,
-      required this.isDisabled,
-      required this.onTap});
+  const _PgBtn({required this.label, required this.isActive, required this.isDisabled, required this.onTap});
 
   @override
   State<_PgBtn> createState() => _PgBtnState();
@@ -1463,7 +1455,8 @@ class _PgBtnState extends State<_PgBtn> {
     if (widget.isActive) {
       bgColor = _C.primary; textColor = Colors.white; borderColor = _C.primary;
     } else if (_hovered && !widget.isDisabled) {
-      bgColor = _C.accentLight; textColor = _C.accent; borderColor = _C.accent.withOpacity(0.3);
+      bgColor = _C.accentLight; textColor = _C.accent;
+      borderColor = _C.accent.withOpacity(0.3);
     } else if (widget.isDisabled) {
       textColor = _C.border;
     }
@@ -1486,9 +1479,8 @@ class _PgBtnState extends State<_PgBtn> {
             child: Text(widget.label,
                 style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: widget.isActive
-                        ? FontWeight.w700
-                        : FontWeight.w500,
+                    fontWeight:
+                        widget.isActive ? FontWeight.w700 : FontWeight.w500,
                     color: textColor)),
           ),
         ),
@@ -1534,8 +1526,7 @@ class _ViewDialogContentState extends State<_ViewDialogContent>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 260));
+    _ctrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
     _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _scale = Tween<double>(begin: 0.94, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
@@ -1543,10 +1534,7 @@ class _ViewDialogContentState extends State<_ViewDialogContent>
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   void _close() => _ctrl.reverse().then((_) => Navigator.pop(context));
 
@@ -1567,132 +1555,98 @@ class _ViewDialogContentState extends State<_ViewDialogContent>
                   offset: const Offset(0, 10)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20)),
-                  border: Border(
-                      bottom: BorderSide(color: _C.border, width: 0.5)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border(bottom: BorderSide(color: _C.border, width: 0.5)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(
+                      color: _C.accentLight, borderRadius: BorderRadius.circular(9)),
+                  child: const Icon(Icons.visibility_outlined, size: 17, color: _C.accent),
                 ),
-                child: Row(children: [
-                  Container(
-                    width: 34, height: 34,
+                const SizedBox(width: 10),
+                const Text("View user",
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700, color: _C.textHead)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _close,
+                  child: Container(
+                    width: 30, height: 30,
                     decoration: BoxDecoration(
-                      color: _C.accentLight,
-                      borderRadius: BorderRadius.circular(9),
+                      color: _C.surfaceAlt,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.border, width: 0.5),
                     ),
-                    child: const Icon(Icons.visibility_outlined,
-                        size: 17, color: _C.accent),
+                    child: const Icon(Icons.close_rounded, size: 16, color: _C.textMuted),
                   ),
-                  const SizedBox(width: 10),
-                  const Text("View user",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: _C.textHead)),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _close,
-                    child: Container(
-                      width: 30, height: 30,
-                      decoration: BoxDecoration(
-                        color: _C.surfaceAlt,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _C.border, width: 0.5),
-                      ),
-                      child: const Icon(Icons.close_rounded,
-                          size: 16, color: _C.textMuted),
-                    ),
-                  ),
+                ),
+              ]),
+            ),
+            // Body
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    _Avatar(username: widget.user.username),
+                    const SizedBox(width: 12),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(widget.user.username,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700, color: _C.textHead)),
+                      Text("ID #${widget.user.id}",
+                          style: const TextStyle(fontSize: 11.5, color: _C.textMuted)),
+                    ]),
+                    const Spacer(),
+                    _StatusChip(isActive: widget.user.isActive),
+                  ]),
+                  const SizedBox(height: 16),
+                  Container(height: 0.5, color: _C.divider),
+                  const SizedBox(height: 16),
+                  _DialogField(label: "Username",   value: widget.user.username,  icon: Icons.person_outline_rounded),
+                  const SizedBox(height: 12),
+                  _DialogField(label: "Email",      value: widget.user.email,     icon: Icons.email_outlined),
+                  const SizedBox(height: 12),
+                  _DialogField(label: "Role",       value: widget.user.role,      icon: Icons.shield_outlined, isRole: true),
+                  const SizedBox(height: 12),
+                  _DialogField(label: "Created at", value: widget.user.createdAt, icon: Icons.calendar_today_outlined),
                 ]),
               ),
-
-              // Body
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        _Avatar(username: widget.user.username),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.user.username,
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: _C.textHead)),
-                            Text("ID #${widget.user.id}",
-                                style: const TextStyle(
-                                    fontSize: 11.5, color: _C.textMuted)),
-                          ],
-                        ),
-                        const Spacer(),
-                        _StatusChip(isActive: widget.user.isActive),
-                      ]),
-                      const SizedBox(height: 16),
-                      Container(height: 0.5, color: _C.divider),
-                      const SizedBox(height: 16),
-                      _DialogField(label: "Username",   value: widget.user.username,  icon: Icons.person_outline_rounded),
-                      const SizedBox(height: 12),
-                      _DialogField(label: "Email",      value: widget.user.email,     icon: Icons.email_outlined),
-                      const SizedBox(height: 12),
-                      _DialogField(label: "Role",       value: widget.user.role,      icon: Icons.shield_outlined, isRole: true),
-                      const SizedBox(height: 12),
-                      _DialogField(label: "Regions",    value: "No regions selected", icon: Icons.location_on_outlined, isEmpty: true),
-                      const SizedBox(height: 12),
-                      _DialogField(label: "Created at", value: widget.user.createdAt, icon: Icons.calendar_today_outlined),
-                    ],
+            ),
+            // Footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: _C.surfaceAlt,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                GestureDetector(
+                  onTap: _close,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _C.surface,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: _C.border, width: 0.7),
+                    ),
+                    child: const Text("Close",
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600, color: _C.accent)),
                   ),
                 ),
-              ),
-
-              // Footer
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: _C.surfaceAlt,
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(20)),
-                  border: Border(
-                      top: BorderSide(color: _C.border, width: 0.5)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 22, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _C.surface,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: _C.border, width: 0.7),
-                        ),
-                        child: const Text("Close",
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: _C.accent)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+              ]),
+            ),
+          ]),
         ),
       ),
     );
@@ -1715,45 +1669,40 @@ class _DialogField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: _C.textMuted,
-                letterSpacing: 0.5)),
-        const SizedBox(height: 5),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: _C.surfaceAlt,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _C.border, width: 0.7),
-          ),
-          child: Row(children: [
-            Icon(icon, size: 15, color: isEmpty ? _C.border : _C.textMuted),
-            const SizedBox(width: 9),
-            if (isRole)
-              _RoleChip(role: value)
-            else
-              Expanded(
-                child: Text(value,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: isEmpty ? _C.textMuted : _C.textBody,
-                        fontStyle: isEmpty
-                            ? FontStyle.italic
-                            : FontStyle.normal,
-                        fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis),
-              ),
-          ]),
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: _C.textMuted,
+              letterSpacing: 0.5)),
+      const SizedBox(height: 5),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: _C.surfaceAlt,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _C.border, width: 0.7),
         ),
-      ],
-    );
+        child: Row(children: [
+          Icon(icon, size: 15, color: isEmpty ? _C.border : _C.textMuted),
+          const SizedBox(width: 9),
+          if (isRole)
+            _RoleChip(role: value)
+          else
+            Expanded(
+              child: Text(value,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: isEmpty ? _C.textMuted : _C.textBody,
+                      fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+                      fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis),
+            ),
+        ]),
+      ),
+    ]);
   }
 }
 
@@ -1804,14 +1753,6 @@ class _EditDialogContentState extends State<_EditDialogContent>
   late AnimationController _ctrl;
   late Animation<double> _fade, _scale;
 
-  Future<Map<String, String>> _authHeaders() async {
-    final token = await _TokenManager.getToken();
-    return {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    };
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1820,8 +1761,7 @@ class _EditDialogContentState extends State<_EditDialogContent>
     _passwordCtrl = TextEditingController();
     _isActive     = widget.user.isActive;
 
-    _ctrl  = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 260));
+    _ctrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
     _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _scale = Tween<double>(begin: 0.94, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
@@ -1841,19 +1781,14 @@ class _EditDialogContentState extends State<_EditDialogContent>
   Future<void> _fetchRoles() async {
     setState(() => _isLoadingRoles = true);
     try {
-      final headers = await _authHeaders();
-      final response = await http
-          .get(Uri.parse("http://125.209.66.147:5001/api/roles"),
-              headers: headers)
-          .timeout(const Duration(seconds: 15));
+      final response = await _Api.get("/roles");
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         List<dynamic> rawList = [];
         if (decoded is List) {
           rawList = decoded;
         } else if (decoded is Map) {
-          rawList = decoded['data'] ?? decoded['roles'] ??
-                    decoded['content'] ?? [];
+          rawList = decoded['data'] ?? decoded['roles'] ?? decoded['content'] ?? [];
         }
         final list = rawList
             .map<Map<String, dynamic>>((e) => {
@@ -1879,8 +1814,7 @@ class _EditDialogContentState extends State<_EditDialogContent>
   }
 
   Future<void> _saveChanges() async {
-    if (_usernameCtrl.text.trim().isEmpty ||
-        _emailCtrl.text.trim().isEmpty) {
+    if (_usernameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty) {
       setState(() => _errorMessage = "Username and email cannot be empty.");
       return;
     }
@@ -1896,7 +1830,6 @@ class _EditDialogContentState extends State<_EditDialogContent>
       'email':     _emailCtrl.text.trim(),
       'is_active': _isActive,
       'isActive':  _isActive,
-      'status':    _isActive ? 'active' : 'inactive',
     };
     if (roleId != null) { body['roleId'] = roleId; body['role_id'] = roleId; }
     if (_pwdChanged && _passwordCtrl.text.isNotEmpty) {
@@ -1904,16 +1837,7 @@ class _EditDialogContentState extends State<_EditDialogContent>
     }
 
     try {
-      final headers = await _authHeaders();
-      final response = await http
-          .put(
-            Uri.parse(
-                "http://125.209.66.147:5001/api/users/${widget.user.id}"),
-            headers: headers,
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 15));
-
+      final response = await _Api.put("/users/${widget.user.id}", body);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (!mounted) return;
         _showSnackbar("User updated successfully!", _C.success);
@@ -1947,17 +1871,13 @@ class _EditDialogContentState extends State<_EditDialogContent>
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         backgroundColor: color,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(children: [
-          const Icon(Icons.check_circle_rounded,
-              color: Colors.white, size: 18),
+          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
           const SizedBox(width: 9),
           Text(msg,
               style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13)),
+                  color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         duration: const Duration(seconds: 2),
       ),
@@ -1981,257 +1901,193 @@ class _EditDialogContentState extends State<_EditDialogContent>
                   offset: const Offset(0, 10)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20)),
-                  border: Border(
-                      bottom: BorderSide(color: _C.border, width: 0.5)),
-                ),
-                child: Row(children: [
-                  _Avatar(username: widget.user.username),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Edit user",
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: _C.textHead)),
-                      Text(
-                        "ID #${widget.user.id}  ·  ${widget.user.username}",
-                        style: const TextStyle(
-                            fontSize: 11, color: _C.textMuted),
-                      ),
-                    ],
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border(bottom: BorderSide(color: _C.border, width: 0.5)),
+              ),
+              child: Row(children: [
+                _Avatar(username: widget.user.username),
+                const SizedBox(width: 10),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text("Edit user",
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700, color: _C.textHead)),
+                  Text("ID #${widget.user.id}  ·  ${widget.user.username}",
+                      style: const TextStyle(fontSize: 11, color: _C.textMuted)),
+                ]),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _close,
+                  child: Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                      color: _C.surfaceAlt,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.border, width: 0.5),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 16, color: _C.textMuted),
                   ),
-                  const Spacer(),
-                  GestureDetector(
+                ),
+              ]),
+            ),
+            // Body
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (_errorMessage != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: _C.redLight,
+                        border: Border.all(color: _C.red.withOpacity(0.2), width: 0.7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.warning_amber_rounded, color: _C.red, size: 15),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_errorMessage!,
+                              style: const TextStyle(
+                                  color: Color(0xFFB71C1C), fontSize: 12)),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _errorMessage = null),
+                          child: const Icon(Icons.close_rounded, size: 13, color: _C.textMuted),
+                        ),
+                      ]),
+                    ),
+
+                  _SectionLabel("Account information"),
+                  const SizedBox(height: 12),
+                  _FieldLabel("Username"),
+                  const SizedBox(height: 5),
+                  _InputField(controller: _usernameCtrl, hint: "Enter username", icon: Icons.person_outline_rounded),
+                  const SizedBox(height: 12),
+                  _FieldLabel("Email address"),
+                  const SizedBox(height: 5),
+                  _InputField(controller: _emailCtrl, hint: "Enter email address", icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _FieldLabel("New password"),
+                  const SizedBox(height: 5),
+                  _PasswordField(
+                    controller: _passwordCtrl,
+                    obscure: _obscurePwd,
+                    onToggle: () => setState(() => _obscurePwd = !_obscurePwd),
+                    onChanged: (v) => setState(() => _pwdChanged = v.isNotEmpty),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text("Leave blank to keep current password",
+                      style: TextStyle(fontSize: 10.5, color: _C.textMuted)),
+                  const SizedBox(height: 18),
+                  _SectionLabel("Role & status"),
+                  const SizedBox(height: 12),
+                  _FieldLabel("Role"),
+                  const SizedBox(height: 5),
+                  _isLoadingRoles
+                      ? Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: _C.inputFill,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _C.border, width: 0.7),
+                          ),
+                          child: const Center(
+                            child: SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: _C.accent)),
+                          ),
+                        )
+                      : _roles.isEmpty
+                          ? _InputField(
+                              controller: TextEditingController(
+                                  text: _selectedRole ?? widget.user.role),
+                              hint: "Enter role",
+                              icon: Icons.shield_outlined)
+                          : _RoleDropdown(
+                              roles: _roles,
+                              selected: _selectedRole,
+                              onChanged: (v) => setState(() => _selectedRole = v),
+                            ),
+                  const SizedBox(height: 12),
+                  _FieldLabel("Account status"),
+                  const SizedBox(height: 6),
+                  _StatusToggle(
+                    isActive: _isActive,
+                    onChanged: (v) => setState(() => _isActive = v),
+                  ),
+                ]),
+              ),
+            ),
+            // Footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: _C.surfaceAlt,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: GestureDetector(
                     onTap: _close,
                     child: Container(
-                      width: 30, height: 30,
+                      height: 42,
                       decoration: BoxDecoration(
-                        color: _C.surfaceAlt,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _C.border, width: 0.5),
+                        color: _C.surface,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: _C.border, width: 0.7),
                       ),
-                      child: const Icon(Icons.close_rounded,
-                          size: 16, color: _C.textMuted),
+                      child: const Center(
+                        child: Text("Cancel",
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600, color: _C.textMuted)),
+                      ),
                     ),
-                  ),
-                ]),
-              ),
-
-              // Body
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_errorMessage != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(11),
-                          decoration: BoxDecoration(
-                            color: _C.redLight,
-                            border: Border.all(
-                                color: _C.red.withOpacity(0.2), width: 0.7),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.warning_amber_rounded,
-                                color: _C.red, size: 15),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(_errorMessage!,
-                                  style: const TextStyle(
-                                      color: Color(0xFFB71C1C),
-                                      fontSize: 12)),
-                            ),
-                            GestureDetector(
-                              onTap: () =>
-                                  setState(() => _errorMessage = null),
-                              child: const Icon(Icons.close_rounded,
-                                  size: 13, color: _C.textMuted),
-                            ),
-                          ]),
-                        ),
-
-                      _SectionLabel("Account information"),
-                      const SizedBox(height: 12),
-
-                      _FieldLabel("Username"),
-                      const SizedBox(height: 5),
-                      _InputField(
-                          controller: _usernameCtrl,
-                          hint: "Enter username",
-                          icon: Icons.person_outline_rounded),
-
-                      const SizedBox(height: 12),
-                      _FieldLabel("Email address"),
-                      const SizedBox(height: 5),
-                      _InputField(
-                          controller: _emailCtrl,
-                          hint: "Enter email address",
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress),
-
-                      const SizedBox(height: 12),
-                      _FieldLabel("New password"),
-                      const SizedBox(height: 5),
-                      _PasswordField(
-                        controller: _passwordCtrl,
-                        obscure: _obscurePwd,
-                        onToggle: () =>
-                            setState(() => _obscurePwd = !_obscurePwd),
-                        onChanged: (v) =>
-                            setState(() => _pwdChanged = v.isNotEmpty),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text("Leave blank to keep current password",
-                          style: TextStyle(
-                              fontSize: 10.5, color: _C.textMuted)),
-
-                      const SizedBox(height: 18),
-                      _SectionLabel("Role & status"),
-                      const SizedBox(height: 12),
-
-                      _FieldLabel("Role"),
-                      const SizedBox(height: 5),
-                      _isLoadingRoles
-                          ? Container(
-                              height: 46,
-                              decoration: BoxDecoration(
-                                color: _C.inputFill,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: _C.border, width: 0.7),
-                              ),
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: _C.accent),
-                                ),
-                              ),
-                            )
-                          : _roles.isEmpty
-                              ? _InputField(
-                                  controller: TextEditingController(
-                                      text: _selectedRole ??
-                                          widget.user.role),
-                                  hint: "Enter role",
-                                  icon: Icons.shield_outlined)
-                              : _RoleDropdown(
-                                  roles: _roles,
-                                  selected: _selectedRole,
-                                  onChanged: (v) =>
-                                      setState(() => _selectedRole = v),
-                                ),
-
-                      const SizedBox(height: 12),
-                      _FieldLabel("Account status"),
-                      const SizedBox(height: 6),
-                      _StatusToggle(
-                        isActive: _isActive,
-                        onChanged: (v) => setState(() => _isActive = v),
-                      ),
-                    ],
                   ),
                 ),
-              ),
-
-              // Footer
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: _C.surfaceAlt,
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(20)),
-                  border: Border(
-                      top: BorderSide(color: _C.border, width: 0.5)),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _isSaving ? null : _saveChanges,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 100),
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _isSaving ? const Color(0xFF2D6BBF) : _C.accent,
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: [
+                          BoxShadow(
+                              color: _C.accent.withOpacity(0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3)),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isSaving
+                            ? const SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+                                Icon(Icons.check_rounded, size: 15, color: Colors.white),
+                                SizedBox(width: 5),
+                                Text("Save changes",
+                                    style: TextStyle(
+                                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                              ]),
+                      ),
+                    ),
+                  ),
                 ),
-                child: Row(children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _C.surface,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: _C.border, width: 0.7),
-                        ),
-                        child: const Center(
-                          child: Text("Cancel",
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _C.textMuted)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: _isSaving ? null : _saveChanges,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 100),
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _isSaving
-                              ? const Color(0xFF2D6BBF)
-                              : _C.accent,
-                          borderRadius: BorderRadius.circular(9),
-                          boxShadow: [
-                            BoxShadow(
-                                color: _C.accent.withOpacity(0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3)),
-                          ],
-                        ),
-                        child: Center(
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2),
-                                )
-                              : Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(Icons.check_rounded,
-                                        size: 15, color: Colors.white),
-                                    SizedBox(width: 5),
-                                    Text("Save changes",
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13)),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-            ],
-          ),
+              ]),
+            ),
+          ]),
         ),
       ),
     );
@@ -2239,7 +2095,6 @@ class _EditDialogContentState extends State<_EditDialogContent>
 }
 
 // ─── Edit dialog sub-widgets ──────────────────────────────────────────────────
-
 class _SectionLabel extends StatelessWidget {
   final String label;
   const _SectionLabel(this.label);
@@ -2249,16 +2104,12 @@ class _SectionLabel extends StatelessWidget {
     return Row(children: [
       Container(
         width: 3, height: 12,
-        decoration: BoxDecoration(
-            color: _C.accent, borderRadius: BorderRadius.circular(2)),
+        decoration: BoxDecoration(color: _C.accent, borderRadius: BorderRadius.circular(2)),
       ),
       const SizedBox(width: 7),
       Text(label.toUpperCase(),
           style: const TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: _C.textMuted,
-              letterSpacing: 1.0)),
+              fontSize: 9.5, fontWeight: FontWeight.w700, color: _C.textMuted, letterSpacing: 1.0)),
     ]);
   }
 }
@@ -2269,10 +2120,7 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(label,
-      style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: _C.textBody));
+      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: _C.textBody));
 }
 
 class _InputField extends StatefulWidget {
@@ -2312,17 +2160,13 @@ class _InputFieldState extends State<_InputField> {
         child: TextField(
           controller: widget.controller,
           keyboardType: widget.keyboardType,
-          style: const TextStyle(
-              fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            prefixIcon: Icon(widget.icon,
-                size: 17,
-                color: _focused ? _C.accent : _C.textMuted),
+            prefixIcon: Icon(widget.icon, size: 17, color: _focused ? _C.accent : _C.textMuted),
             hintText: widget.hint,
             hintStyle: const TextStyle(color: _C.textMuted),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           ),
         ),
       ),
@@ -2368,26 +2212,21 @@ class _PasswordFieldState extends State<_PasswordField> {
           controller: widget.controller,
           obscureText: widget.obscure,
           onChanged: widget.onChanged,
-          style: const TextStyle(
-              fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            prefixIcon: Icon(Icons.lock_outline_rounded,
-                size: 17,
+            prefixIcon: Icon(Icons.lock_outline_rounded, size: 17,
                 color: _focused ? _C.accent : _C.textMuted),
             hintText: "New password (optional)",
             hintStyle: const TextStyle(color: _C.textMuted),
             suffixIcon: GestureDetector(
               onTap: widget.onToggle,
               child: Icon(
-                widget.obscure
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+                widget.obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 size: 17, color: _C.textMuted,
               ),
             ),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           ),
         ),
       ),
@@ -2400,8 +2239,7 @@ class _RoleDropdown extends StatelessWidget {
   final String? selected;
   final ValueChanged<String?> onChanged;
 
-  const _RoleDropdown(
-      {required this.roles, required this.selected, required this.onChanged});
+  const _RoleDropdown({required this.roles, required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -2420,16 +2258,11 @@ class _RoleDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           value: safeSelected,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              color: _C.textMuted, size: 18),
-          style: const TextStyle(
-              fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _C.textMuted, size: 18),
+          style: const TextStyle(fontSize: 13.5, color: _C.textBody, fontWeight: FontWeight.w500),
           borderRadius: BorderRadius.circular(12),
           items: names
-              .map((name) => DropdownMenuItem(
-                    value: name,
-                    child: _RoleChip(role: name),
-                  ))
+              .map((name) => DropdownMenuItem(value: name, child: _RoleChip(role: name)))
               .toList(),
           onChanged: onChanged,
         ),
@@ -2448,14 +2281,10 @@ class _StatusToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isActive
-            ? _C.success.withOpacity(0.05)
-            : _C.red.withOpacity(0.04),
+        color: isActive ? _C.success.withOpacity(0.05) : _C.red.withOpacity(0.04),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isActive
-              ? _C.success.withOpacity(0.2)
-              : _C.red.withOpacity(0.18),
+          color: isActive ? _C.success.withOpacity(0.2) : _C.red.withOpacity(0.18),
           width: 0.7,
         ),
       ),
@@ -2463,30 +2292,23 @@ class _StatusToggle extends StatelessWidget {
         Container(
           width: 7, height: 7,
           decoration: BoxDecoration(
-              color: isActive ? _C.success : _C.red,
-              shape: BoxShape.circle),
+              color: isActive ? _C.success : _C.red, shape: BoxShape.circle),
         ),
         const SizedBox(width: 9),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(isActive ? "Active" : "Inactive",
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: isActive
-                          ? const Color(0xFF085041)
-                          : const Color(0xFFB71C1C))),
-              Text(
-                isActive
-                    ? "User can log in and access the system"
-                    : "User is blocked from accessing the system",
-                style: const TextStyle(
-                    fontSize: 10.5, color: _C.textMuted),
-              ),
-            ],
-          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(isActive ? "Active" : "Inactive",
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isActive ? const Color(0xFF085041) : const Color(0xFFB71C1C))),
+            Text(
+              isActive
+                  ? "User can log in and access the system"
+                  : "User is blocked from accessing the system",
+              style: const TextStyle(fontSize: 10.5, color: _C.textMuted),
+            ),
+          ]),
         ),
         Switch(
           value: isActive,
@@ -2500,9 +2322,7 @@ class _StatusToggle extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ─── Delete User Dialog ────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Delete User Dialog ───────────────────────────────────────────────────────
 class _DeleteUserDialog extends StatelessWidget {
   final UserModel user;
   const _DeleteUserDialog({required this.user});
@@ -2530,7 +2350,7 @@ class _DeleteDialogContent extends StatefulWidget {
 
 class _DeleteDialogContentState extends State<_DeleteDialogContent>
     with SingleTickerProviderStateMixin {
-  bool _isDeleting  = false;
+  bool _isDeleting = false;
   String? _errorMsg;
 
   late AnimationController _ctrl;
@@ -2539,8 +2359,7 @@ class _DeleteDialogContentState extends State<_DeleteDialogContent>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 260));
+    _ctrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
     _fade  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _scale = Tween<double>(begin: 0.94, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
@@ -2548,10 +2367,7 @@ class _DeleteDialogContentState extends State<_DeleteDialogContent>
   }
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _ctrl.dispose(); super.dispose(); }
 
   void _cancel() => _ctrl.reverse().then((_) => Navigator.pop(context, false));
 
@@ -2559,29 +2375,17 @@ class _DeleteDialogContentState extends State<_DeleteDialogContent>
     setState(() { _isDeleting = true; _errorMsg = null; });
 
     try {
-      final token = await _TokenManager.getToken();
-      final response = await http
-          .delete(
-            Uri.parse(
-                "http://125.209.66.147:5001/api/users/${widget.user.id}"),
-            headers: {
-              "Authorization": "Bearer $token",
-              "Content-Type": "application/json",
-            },
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await _Api.delete("/users/${widget.user.id}");
 
-      // 200, 204 both mean success
       if (response.statusCode == 200 ||
-          response.statusCode == 204 ||
-          response.statusCode == 201) {
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
         if (!mounted) return;
         _showSnackbar();
         await _ctrl.reverse();
         if (!mounted) return;
         Navigator.pop(context, true);
       } else {
-        // Try to parse an error message from the body
         String msg = "Delete failed (HTTP ${response.statusCode})";
         try {
           if (response.body.isNotEmpty) {
@@ -2604,19 +2408,13 @@ class _DeleteDialogContentState extends State<_DeleteDialogContent>
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         backgroundColor: _C.red,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(children: [
-          const Icon(Icons.check_circle_rounded,
-              color: Colors.white, size: 18),
+          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
           const SizedBox(width: 9),
-          Text(
-            'User "${widget.user.username}" deleted.',
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13),
-          ),
+          Text('User "${widget.user.username}" deleted.',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         duration: const Duration(seconds: 2),
       ),
@@ -2640,267 +2438,194 @@ class _DeleteDialogContentState extends State<_DeleteDialogContent>
                   offset: const Offset(0, 10)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Header ────────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 14, 20),
-                decoration: BoxDecoration(
-                  color: _C.surface,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20)),
-                  border: Border(
-                      bottom: BorderSide(color: _C.border, width: 0.5)),
-                ),
-                child: Row(children: [
-                  // Red warning icon badge
-                  Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                      color: _C.redLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        size: 19, color: _C.red),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text("Delete user",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: _C.textHead)),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _isDeleting ? null : _cancel,
-                    child: Container(
-                      width: 30, height: 30,
-                      decoration: BoxDecoration(
-                        color: _C.surfaceAlt,
-                        borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: _C.border, width: 0.5),
-                      ),
-                      child: const Icon(Icons.close_rounded,
-                          size: 16, color: _C.textMuted),
-                    ),
-                  ),
-                ]),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 14, 20),
+              decoration: BoxDecoration(
+                color: _C.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border(bottom: BorderSide(color: _C.border, width: 0.5)),
               ),
-
-              // ── Body ──────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // User info card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: _C.surfaceAlt,
-                        borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: _C.border, width: 0.7),
-                      ),
-                      child: Row(children: [
-                        _Avatar(username: widget.user.username),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(widget.user.username,
-                                  style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: _C.textHead)),
-                              const SizedBox(height: 2),
-                              Text(widget.user.email,
-                                  style: const TextStyle(
-                                      fontSize: 11.5,
-                                      color: _C.textMuted),
-                                  overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _RoleChip(role: widget.user.role),
+              child: Row(children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                      color: _C.redLight, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.delete_outline_rounded, size: 19, color: _C.red),
+                ),
+                const SizedBox(width: 12),
+                const Text("Delete user",
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700, color: _C.textHead)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _isDeleting ? null : _cancel,
+                  child: Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(
+                      color: _C.surfaceAlt,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _C.border, width: 0.5),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 16, color: _C.textMuted),
+                  ),
+                ),
+              ]),
+            ),
+            // Body
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                // User info card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _C.surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _C.border, width: 0.7),
+                  ),
+                  child: Row(children: [
+                    _Avatar(username: widget.user.username),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(widget.user.username,
+                            style: const TextStyle(
+                                fontSize: 13.5, fontWeight: FontWeight.w700, color: _C.textHead)),
+                        const SizedBox(height: 2),
+                        Text(widget.user.email,
+                            style: const TextStyle(fontSize: 11.5, color: _C.textMuted),
+                            overflow: TextOverflow.ellipsis),
                       ]),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Warning message
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8F8),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: _C.red.withOpacity(0.18), width: 0.7),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: Icon(Icons.warning_amber_rounded,
-                                size: 16,
-                                color: _C.red.withOpacity(0.8)),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: _C.textBody,
-                                    height: 1.5),
-                                children: [
-                                  const TextSpan(
-                                      text:
-                                          "This action is permanent and cannot be undone. "),
-                                  TextSpan(
-                                    text: widget.user.username,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: _C.textHead),
-                                  ),
-                                  const TextSpan(
-                                      text:
-                                          "'s account, settings, and access will be permanently removed."),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Error banner (shown only on API failure)
-                    if (_errorMsg != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(11),
-                        decoration: BoxDecoration(
-                          color: _C.redLight,
-                          border: Border.all(
-                              color: _C.red.withOpacity(0.2), width: 0.7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: _C.red, size: 15),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(_errorMsg!,
-                                style: const TextStyle(
-                                    color: Color(0xFFB71C1C),
-                                    fontSize: 12)),
-                          ),
-                          GestureDetector(
-                            onTap: () =>
-                                setState(() => _errorMsg = null),
-                            child: const Icon(Icons.close_rounded,
-                                size: 13, color: _C.textMuted),
-                          ),
-                        ]),
-                      ),
-                    ],
-                  ],
+                    const SizedBox(width: 8),
+                    _RoleChip(role: widget.user.role),
+                  ]),
                 ),
-              ),
-
-              // ── Footer ────────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: _C.surfaceAlt,
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(20)),
-                  border: Border(
-                      top: BorderSide(color: _C.border, width: 0.5)),
-                ),
-                child: Row(children: [
-                  // Cancel
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _isDeleting ? null : _cancel,
-                      child: Container(
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _C.surface,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                              color: _C.border, width: 0.7),
-                        ),
-                        child: const Center(
-                          child: Text("Cancel",
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _C.textMuted)),
-                        ),
-                      ),
-                    ),
+                const SizedBox(height: 16),
+                // Warning
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _C.red.withOpacity(0.18), width: 0.7),
                   ),
-                  const SizedBox(width: 10),
-                  // Delete confirm
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: _isDeleting ? null : _confirmDelete,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 100),
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _isDeleting
-                              ? const Color(0xFFB71C1C)
-                              : _C.red,
-                          borderRadius: BorderRadius.circular(9),
-                          boxShadow: [
-                            BoxShadow(
-                                color: _C.red.withOpacity(0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3)),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(Icons.warning_amber_rounded, size: 16, color: _C.red.withOpacity(0.8)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 12.5, color: _C.textBody, height: 1.5),
+                          children: [
+                            const TextSpan(text: "This action is permanent and cannot be undone. "),
+                            TextSpan(
+                                text: widget.user.username,
+                                style: const TextStyle(fontWeight: FontWeight.w700, color: _C.textHead)),
+                            const TextSpan(
+                                text: "'s account, settings, and access will be permanently removed."),
                           ],
                         ),
-                        child: Center(
-                          child: _isDeleting
-                              ? const SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2),
-                                )
-                              : Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(Icons.delete_rounded,
-                                        size: 15,
-                                        color: Colors.white),
-                                    SizedBox(width: 6),
-                                    Text("Yes, delete user",
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13)),
-                                  ],
-                                ),
-                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+                if (_errorMsg != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: _C.redLight,
+                      border: Border.all(color: _C.red.withOpacity(0.2), width: 0.7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline_rounded, color: _C.red, size: 15),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_errorMsg!,
+                            style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 12)),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() => _errorMsg = null),
+                        child: const Icon(Icons.close_rounded, size: 13, color: _C.textMuted),
+                      ),
+                    ]),
+                  ),
+                ],
+              ]),
+            ),
+            // Footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: _C.surfaceAlt,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                border: Border(top: BorderSide(color: _C.border, width: 0.5)),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _isDeleting ? null : _cancel,
+                    child: Container(
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _C.surface,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: _C.border, width: 0.7),
+                      ),
+                      child: const Center(
+                        child: Text("Cancel",
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600, color: _C.textMuted)),
                       ),
                     ),
                   ),
-                ]),
-              ),
-            ],
-          ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _isDeleting ? null : _confirmDelete,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 100),
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: _isDeleting ? const Color(0xFFB71C1C) : _C.red,
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: [
+                          BoxShadow(
+                              color: _C.red.withOpacity(0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3)),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isDeleting
+                            ? const SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+                                Icon(Icons.delete_rounded, size: 15, color: Colors.white),
+                                SizedBox(width: 6),
+                                Text("Yes, delete user",
+                                    style: TextStyle(
+                                        color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                              ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
         ),
       ),
     );

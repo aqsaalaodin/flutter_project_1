@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// ─── Design Tokens (mirrors Dashboard AppColors) ──────────────────────────────
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {
   static const bg         = Color(0xFFF5F7FA);
   static const surface    = Color(0xFFFFFFFF);
@@ -34,6 +34,64 @@ class _C {
   static const divider = Color(0xFFEDF2F7);
 }
 
+// ─── Auth Service — Token Manager ────────────────────────────────────────────
+// Yeh class pehle login karti hai aur fresh token return karti hai
+// Hardcoded token ka masla hamesha k liye khatam
+
+class _AuthService {
+  static const _baseUrl      = "http://125.209.66.147:5001/api";
+  static const _loginEmail   = "superadmin";
+  static const _loginPass    = "admin123";
+
+  // In-memory token cache (app session tak)
+  static String? _cachedToken;
+
+  /// Fresh token lo — agar cache mein hai to wahi, warna login karo
+  static Future<String> getToken() async {
+    if (_cachedToken != null) return _cachedToken!;
+    return await _login();
+  }
+
+  /// Token invalidate karo (401 aane par)
+  static void invalidate() => _cachedToken = null;
+
+  static Future<String> _login() async {
+    final url = Uri.parse("$_baseUrl/auth/login");
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "usernameOrEmail": _loginEmail,
+        "password": _loginPass,
+      }),
+    );
+
+    print("Login Status: ${response.statusCode}");
+    print("Login Body: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+
+      // Common token field names — jo bhi API return kare
+      final token = data['token']
+          ?? data['accessToken']
+          ?? data['access_token']
+          ?? data['data']?['token']
+          ?? data['data']?['accessToken'];
+
+      if (token == null) {
+        throw Exception("Token field nahi mila response mein: ${response.body}");
+      }
+
+      _cachedToken = token as String;
+      print("Token cached successfully ✓");
+      return _cachedToken!;
+    } else {
+      throw Exception("Login failed: ${response.statusCode} — ${response.body}");
+    }
+  }
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 class CreateUserScreen extends StatefulWidget {
   const CreateUserScreen({super.key});
@@ -51,9 +109,9 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   final TextEditingController passwordController = TextEditingController();
 
   String? selectedRole;
-  bool isActive           = true;
-  bool isPasswordVisible  = false;
-  bool _isLoading         = false;
+  bool isActive          = true;
+  bool isPasswordVisible = false;
+  bool _isLoading        = false;
 
   late AnimationController _animCtrl;
   late Animation<double>   _fadeAnim;
@@ -67,21 +125,17 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     'User',
   ];
 
-  final String baseUrl = "http://125.209.66.147:5001/api/users";
-  final String token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdXBlcmFkbWluIiwidXNlcm5hbWUiOiJzdXBlcmFkbWluIiwidXNlcklkIjoxLCJyb2xlSWQiOjEsInJvbGVOYW1lIjoiU3VwZXIgQWRtaW4iLCJyZWdpb25JZHMiOltdLCJjYXJkX25hbWUiOm51bGwsInVzZXJfdHlwZSI6bnVsbCwidXNlcl9jb2RlIjpudWxsLCJwZXJtaXNzaW9ucyI6eyJ2ZW5kb3JBc3NpZ25tZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwidXNlciI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInJvbGUiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSJdLCJ2ZW5kb3JSZXF1ZXN0cyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNob3Bib2FyZFJlcXVlc3QiOlsicmVhZCIsImNyZWF0ZSIsInVwZGF0ZSIsImRlbGV0ZSIsImFwcHJvdmFscyJdLCJyZXF1ZXN0UHJpY2VBZGp1c3RtZW50IjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwicmVxdWVzdFR5cGVzIjpbInJlYWQiLCJjcmVhdGUiLCJ1cGRhdGUiLCJkZWxldGUiXSwic3RhdGlzdGljcyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sImJ1ZGdldE1hbmFnZW1lbnQiOlsiY3JlYXRlIiwicmVhZCIsInVwZGF0ZSIsImRlbGV0ZSJdLCJwYXltZW50cyI6WyJjcmVhdGUiLCJyZWFkIiwidXBkYXRlIiwiZGVsZXRlIl0sInBheW1lbnRCYXRjaCI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl0sInNtdHBTZXR0aW5ncyI6WyJyZWFkIiwiY3JlYXRlIiwidXBkYXRlIiwiZGVsZXRlIl19LCJtb2JpbGVQZXJtaXNzaW9ucyI6e30sImlhdCI6MTc3ODc0OTc1NSwiZXhwIjoxNzc5MzU0NTU1fQ.Sb5xCnHnUoIoN2c3JvBU1ldMDe2_7wJBsPGeGyZe-v0";
+  static const _baseUrl = "http://125.209.66.147:5001/api/users";
 
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 480));
-    _fadeAnim =
-        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _fadeAnim  = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
             begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
   }
 
@@ -94,70 +148,93 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     super.dispose();
   }
 
+  // ── User Create — with auto-token + retry on 401 ──────────────────────────
   Future<void> createUser() async {
     setState(() => _isLoading = true);
-    final url = Uri.parse(baseUrl);
+
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({
-          "username": usernameController.text,
-          "email": emailController.text,
-          "password": passwordController.text,
-          "role": selectedRole,
-          "is_active": isActive,
-        }),
-      );
+      // Step 1: fresh token lo (login auto hoga agar cached nahi)
+      final token = await _AuthService.getToken();
 
-      print("Status Code: ${response.statusCode}");
-      print("Response: ${response.body}");
+      // Step 2: user create karo
+      final success = await _postCreateUser(token);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Failed to create user"),
-            backgroundColor: _C.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+      // Step 3: agar 401 aaya — token expire tha, dobara login karo
+      if (!success) {
+        print("401 mila — token invalidate karke retry...");
+        _AuthService.invalidate();
+        final freshToken = await _AuthService.getToken();
+        await _postCreateUser(freshToken, isRetry: true);
       }
     } catch (e) {
       print("Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Something went wrong"),
-          backgroundColor: _C.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (mounted) {
+        _showSnack("Error: ${e.toString().replaceAll('Exception: ', '')}");
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ── shared input decoration — Navy theme ──────────────────────────────────
-  InputDecoration _dec(String label,
-          {Widget? suffix, IconData? prefixIcon}) =>
+  /// Returns true = success/handled, false = needs retry (401)
+  Future<bool> _postCreateUser(String token, {bool isRetry = false}) async {
+    final url = Uri.parse(_baseUrl);
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: jsonEncode({
+        "username" : usernameController.text.trim(),
+        "email"    : emailController.text.trim(),
+        "password" : passwordController.text,
+        "role"     : selectedRole,
+        "is_active": isActive,
+      }),
+    );
+
+    print("Create User Status: ${response.statusCode}");
+    print("Create User Response: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (mounted) Navigator.pop(context, true);
+      return true;
+    } else if (response.statusCode == 401 && !isRetry) {
+      // Retry signal
+      return false;
+    } else {
+      // Parse server error message agar ho
+      String errMsg = "User create nahi hua (${response.statusCode})";
+      try {
+        final body = jsonDecode(response.body);
+        errMsg = body['message'] ?? body['error'] ?? errMsg;
+      } catch (_) {}
+
+      if (mounted) _showSnack(errMsg);
+      return true; // handled
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: _C.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // ── Shared input decoration ───────────────────────────────────────────────
+  InputDecoration _dec(String label, {Widget? suffix, IconData? prefixIcon}) =>
       InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(
-            color: _C.textMuted,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500),
+            color: _C.textMuted, fontSize: 13.5, fontWeight: FontWeight.w500),
         floatingLabelStyle: const TextStyle(
-            color: _C.accent,
-            fontSize: 12,
-            fontWeight: FontWeight.w700),
+            color: _C.accent, fontSize: 12, fontWeight: FontWeight.w700),
         filled: true,
         fillColor: _C.bg,
         suffixIcon: suffix,
@@ -193,8 +270,7 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     return Dialog(
       backgroundColor: _C.surface,
       surfaceTintColor: Colors.transparent,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 0,
       child: FadeTransition(
         opacity: _fadeAnim,
@@ -223,13 +299,11 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
 
-                      // ── Header — matches Dashboard TopBar style ─────────
+                      // ── Header ────────────────────────────────────────────
                       Row(
                         children: [
-                          // Navy accent icon — same as TopBar logo circle
                           Container(
-                            width: 38,
-                            height: 38,
+                            width: 38, height: 38,
                             decoration: BoxDecoration(
                               color: _C.primary,
                               borderRadius: BorderRadius.circular(11),
@@ -237,44 +311,36 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                                   color: _C.primaryMid.withOpacity(0.35),
                                   width: 0.8),
                             ),
-                            child: const Icon(
-                                Icons.person_add_rounded,
-                                color: Colors.white,
-                                size: 19),
+                            child: const Icon(Icons.person_add_rounded,
+                                color: Colors.white, size: 19),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Text(
-                                  'Create User',
-                                  style: TextStyle(
-                                      color: _C.textHead,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.1),
-                                ),
+                                Text('Create User',
+                                    style: TextStyle(
+                                        color: _C.textHead,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.1)),
                                 SizedBox(height: 1),
-                                Text(
-                                  'Add a new member to the system',
-                                  style: TextStyle(
-                                      color: _C.textMuted, fontSize: 11),
-                                ),
+                                Text('Add a new member to the system',
+                                    style: TextStyle(
+                                        color: _C.textMuted, fontSize: 11)),
                               ],
                             ),
                           ),
-                          // Close button — same surfaceAlt style as _IconBtn
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
                             child: Container(
-                              width: 32,
-                              height: 32,
+                              width: 32, height: 32,
                               decoration: BoxDecoration(
                                 color: _C.surfaceAlt,
                                 borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                    color: _C.border, width: 0.7),
+                                border:
+                                    Border.all(color: _C.border, width: 0.7),
                               ),
                               child: const Icon(Icons.close_rounded,
                                   color: _C.textMuted, size: 17),
@@ -283,18 +349,16 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                         ],
                       ),
 
-                      // ── Divider — same as Dashboard card dividers ────────
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: Divider(
                             color: _C.divider, thickness: 0.8, height: 0),
                       ),
 
-                      // ── Section label — matches _DSection style ──────────
+                      // ── Account Details ───────────────────────────────────
                       const _SectionLabel('Account Details'),
                       const SizedBox(height: 10),
 
-                      // ── Username ─────────────────────────────────────────
                       TextFormField(
                         controller: usernameController,
                         style: const TextStyle(
@@ -304,12 +368,11 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                         decoration: _dec('Username *',
                             prefixIcon: Icons.person_outline_rounded),
                         validator: (v) =>
-                            v!.isEmpty ? 'Please enter username' : null,
+                            v!.trim().isEmpty ? 'Please enter username' : null,
                       ),
 
                       const SizedBox(height: 12),
 
-                      // ── Email ─────────────────────────────────────────────
                       TextFormField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -323,7 +386,6 @@ class _CreateUserScreenState extends State<CreateUserScreen>
 
                       const SizedBox(height: 12),
 
-                      // ── Password ──────────────────────────────────────────
                       TextFormField(
                         controller: passwordController,
                         obscureText: !isPasswordVisible,
@@ -342,8 +404,8 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                               size: 18,
                               color: _C.textMuted,
                             ),
-                            onPressed: () => setState(() =>
-                                isPasswordVisible = !isPasswordVisible),
+                            onPressed: () => setState(
+                                () => isPasswordVisible = !isPasswordVisible),
                           ),
                         ),
                         validator: (v) =>
@@ -352,15 +414,13 @@ class _CreateUserScreenState extends State<CreateUserScreen>
 
                       const SizedBox(height: 18),
 
-                      // ── Section label ─────────────────────────────────────
+                      // ── Permissions ───────────────────────────────────────
                       const _SectionLabel('Permissions'),
                       const SizedBox(height: 10),
 
-                      // ── Role Dropdown ─────────────────────────────────────
                       DropdownButtonFormField<String>(
                         value: selectedRole,
-                        icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
                             color: _C.textMuted),
                         dropdownColor: _C.surface,
                         style: const TextStyle(
@@ -368,30 +428,26 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600),
                         decoration: _dec('Role *',
-                            prefixIcon:
-                                Icons.admin_panel_settings_rounded),
+                            prefixIcon: Icons.admin_panel_settings_rounded),
                         items: roles
                             .map((role) => DropdownMenuItem(
                                   value: role,
                                   child: Text(role),
                                 ))
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => selectedRole = v),
+                        onChanged: (v) => setState(() => selectedRole = v),
                         validator: (v) =>
                             v == null ? 'Please select role' : null,
                       ),
 
                       const SizedBox(height: 12),
 
-                      // ── Active Switch — matches _StatCard / _BudgetCard style
+                      // ── Active Switch ─────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 11),
                         decoration: BoxDecoration(
-                          color: isActive
-                              ? _C.accentLight
-                              : _C.surfaceAlt,
+                          color: isActive ? _C.accentLight : _C.surfaceAlt,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isActive
@@ -415,24 +471,19 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                                     ? Icons.check_circle_outline_rounded
                                     : Icons.radio_button_unchecked_rounded,
                                 size: 17,
-                                color: isActive
-                                    ? _C.accent
-                                    : _C.textMuted,
+                                color: isActive ? _C.accent : _C.textMuted,
                               ),
                             ),
                             const SizedBox(width: 11),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Active Status',
-                                    style: TextStyle(
-                                        color: _C.textHead,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700),
-                                  ),
+                                  const Text('Active Status',
+                                      style: TextStyle(
+                                          color: _C.textHead,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 1),
                                   Text(
                                     isActive
@@ -449,11 +500,9 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                             ),
                             Switch(
                               value: isActive,
-                              onChanged: (v) =>
-                                  setState(() => isActive = v),
+                              onChanged: (v) => setState(() => isActive = v),
                               activeColor: _C.accent,
-                              activeTrackColor:
-                                  _C.accent.withOpacity(0.20),
+                              activeTrackColor: _C.accent.withOpacity(0.20),
                               inactiveThumbColor: Colors.white,
                               inactiveTrackColor: _C.border,
                             ),
@@ -461,7 +510,6 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                         ),
                       ),
 
-                      // ── Divider ───────────────────────────────────────────
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: Divider(
@@ -473,7 +521,6 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
 
-                          // Cancel — same surfaceAlt style
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
                             child: Container(
@@ -482,34 +529,29 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                               decoration: BoxDecoration(
                                 color: _C.surfaceAlt,
                                 borderRadius: BorderRadius.circular(11),
-                                border: Border.all(
-                                    color: _C.border, width: 0.8),
+                                border:
+                                    Border.all(color: _C.border, width: 0.8),
                               ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                    color: _C.textBody,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
-                              ),
+                              child: const Text('Cancel',
+                                  style: TextStyle(
+                                      color: _C.textBody,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600)),
                             ),
                           ),
 
                           const SizedBox(width: 10),
 
-                          // Create — Navy primary button
                           GestureDetector(
                             onTap: _isLoading
                                 ? null
                                 : () {
-                                    if (_formKey.currentState!
-                                        .validate()) {
+                                    if (_formKey.currentState!.validate()) {
                                       createUser();
                                     }
                                   },
                             child: AnimatedContainer(
-                              duration:
-                                  const Duration(milliseconds: 180),
+                              duration: const Duration(milliseconds: 180),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 22, vertical: 10),
                               decoration: BoxDecoration(
@@ -521,8 +563,7 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                                     ? []
                                     : [
                                         BoxShadow(
-                                          color: _C.primary
-                                              .withOpacity(0.30),
+                                          color: _C.primary.withOpacity(0.30),
                                           blurRadius: 12,
                                           offset: const Offset(0, 4),
                                         ),
@@ -533,26 +574,20 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                                       width: 15,
                                       height: 15,
                                       child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2),
+                                          color: Colors.white, strokeWidth: 2),
                                     )
                                   : const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
-                                            Icons.person_add_rounded,
-                                            color: Colors.white,
-                                            size: 15),
+                                        Icon(Icons.person_add_rounded,
+                                            color: Colors.white, size: 15),
                                         SizedBox(width: 7),
-                                        Text(
-                                          'Create User',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight:
-                                                  FontWeight.w700,
-                                              letterSpacing: 0.2),
-                                        ),
+                                        Text('Create User',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.2)),
                                       ],
                                     ),
                             ),
@@ -571,7 +606,7 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   }
 }
 
-// ─── Section Label — mirrors _DSection from Dashboard ────────────────────────
+// ─── Section Label ────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
