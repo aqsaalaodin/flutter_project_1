@@ -38,9 +38,88 @@ class AppColors {
   static const divider     = Color(0xFFEDF2F7);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PERMISSION MODEL ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ✅ RoleMgmtPermissions — Dashboard se aane wali permissions yahan map hoti hain.
+//
+// Dashboard (dashboardscreen.dart) mein UserPermissions class hai jo Map-based hai.
+// Yeh class bool-based hai aur RoleManagementScreen use karta hai.
+//
+// Dashboard se pass karne ka tarika:
+//   RoleManagementScreen(
+//     permissions: RoleMgmtPermissions(
+//       canViewRoles:   p.canRead('role'),
+//       canEditRoles:   p.canUpdate('role'),
+//       canDeleteRoles: p.canDelete('role'),
+//       canCreateRoles: p.canCreate('role'),
+//     ),
+//   )
+
+class RoleMgmtPermissions {
+  final bool canViewRoles;
+  final bool canEditRoles;
+  final bool canDeleteRoles;
+  final bool canCreateRoles;
+
+  const RoleMgmtPermissions({
+    required this.canViewRoles,
+    required this.canEditRoles,
+    required this.canDeleteRoles,
+    required this.canCreateRoles,
+  });
+
+  /// Login API response ka "data" object pass karein
+  /// Shape: { "permissions": { "role": ["read","create","update","delete"] } }
+  factory RoleMgmtPermissions.fromLoginResponse(Map<String, dynamic> data) {
+    final permsMap  = data['permissions'] as Map<String, dynamic>? ?? {};
+    final roleList  = List<String>.from(permsMap['role'] ?? []);
+    return RoleMgmtPermissions(
+      canViewRoles:   roleList.contains('read'),
+      canEditRoles:   roleList.contains('update'),
+      canDeleteRoles: roleList.contains('delete'),
+      canCreateRoles: roleList.contains('create'),
+    );
+  }
+
+  /// Koi permission nahi
+  const RoleMgmtPermissions.none()
+      : canViewRoles   = false,
+        canEditRoles   = false,
+        canDeleteRoles = false,
+        canCreateRoles = false;
+
+  /// Sab permissions
+  const RoleMgmtPermissions.all()
+      : canViewRoles   = true,
+        canEditRoles   = true,
+        canDeleteRoles = true,
+        canCreateRoles = true;
+
+  bool get hasAnyAction => canViewRoles || canEditRoles || canDeleteRoles;
+}
+
+// Backward compat alias — purana naam bhi kaam kare
+typedef UserPermissions = RoleMgmtPermissions;
+
 // ─── Role Management Screen ───────────────────────────────────────────────────
 class RoleManagementScreen extends StatefulWidget {
-  const RoleManagementScreen({super.key});
+  // Dashboard se pass karo:
+  //   RoleManagementScreen(
+  //     permissions: RoleMgmtPermissions(
+  //       canViewRoles:   p.canRead('role'),
+  //       canEditRoles:   p.canUpdate('role'),
+  //       canDeleteRoles: p.canDelete('role'),
+  //       canCreateRoles: p.canCreate('role'),
+  //     ),
+  //   )
+  final RoleMgmtPermissions permissions;
+
+  const RoleManagementScreen({
+    super.key,
+    this.permissions = const RoleMgmtPermissions.none(),
+  });
 
   @override
   State<RoleManagementScreen> createState() => _RoleManagementScreenState();
@@ -53,6 +132,13 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
 
   int _rowsPerPage = 10;
   int _currentPage = 0;
+
+  // Shorthand getters for cleaner code
+  bool get _canView   => widget.permissions.canViewRoles;
+  bool get _canEdit   => widget.permissions.canEditRoles;
+  bool get _canDelete => widget.permissions.canDeleteRoles;
+  bool get _canCreate => widget.permissions.canCreateRoles;
+  bool get _hasActions => widget.permissions.hasAnyAction;
 
   final List<RoleModel> _allRoles = [
     RoleModel(id: 1,  roleName: 'Super Admin',         description: 'Full system access and control over all modules',         createdAt: '11/11/2025\n23:45:48'),
@@ -103,8 +189,9 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     ));
   }
 
-  // ─── Delete Dialog (unchanged) ────────────────────────────────────────────
+  // ─── Delete Dialog ────────────────────────────────────────────────────────
   void _showDeleteDialog(RoleModel role) {
+    if (!_canDelete) return; // Guard — should not reach here anyway
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.35),
@@ -186,8 +273,9 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     );
   }
 
-  // ─── View Dialog (updated style) ─────────────────────────────────────────
+  // ─── View Dialog ──────────────────────────────────────────────────────────
   void _showViewDialog(RoleModel role) {
+    if (!_canView) return;
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -206,8 +294,9 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     );
   }
 
-  // ─── Edit Dialog (updated style) ─────────────────────────────────────────
+  // ─── Edit Dialog ──────────────────────────────────────────────────────────
   void _showEditDialog(RoleModel role) {
+    if (!_canEdit) return;
     final nameCtrl = TextEditingController(text: role.roleName);
     final descCtrl = TextEditingController(text: role.description);
     final formKey  = GlobalKey<FormState>();
@@ -245,8 +334,9 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
     );
   }
 
-  // ─── Create Dialog (updated style) ───────────────────────────────────────
+  // ─── Create Dialog ────────────────────────────────────────────────────────
   void _showCreateDialog() {
+    if (!_canCreate) return;
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final formKey  = GlobalKey<FormState>();
@@ -337,34 +427,37 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                             color: AppColors.textMuted, size: 19),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _showCreateDialog,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                                color: AppColors.accent.withOpacity(0.30),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4))
-                          ],
+                    // ── CREATE button: sirf tab dikhega jab canCreate == true ──
+                    if (_canCreate) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _showCreateDialog,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: AppColors.accent.withOpacity(0.30),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4))
+                            ],
+                          ),
+                          child: const Row(children: [
+                            Icon(Icons.add, color: Colors.white, size: 17),
+                            SizedBox(width: 5),
+                            Text('CREATE',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5)),
+                          ]),
                         ),
-                        child: const Row(children: [
-                          Icon(Icons.add, color: Colors.white, size: 17),
-                          SizedBox(width: 5),
-                          Text('CREATE',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5)),
-                        ]),
                       ),
-                    ),
+                    ],
                   ]),
                   const SizedBox(height: 16),
 
@@ -427,6 +520,7 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                           _ToolbarIconBtn(icon: Icons.download_rounded),
                         ]),
                       ),
+                      // ── Table Header ───────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
@@ -436,24 +530,33 @@ class _RoleManagementScreenState extends State<RoleManagementScreen>
                               top: BorderSide(color: AppColors.divider, width: 1),
                               bottom: BorderSide(color: AppColors.divider, width: 1)),
                         ),
-                        child: const Row(children: [
-                          _ColHeader(text: 'ID',      flex: 1),
-                          _ColHeader(text: 'Name',    flex: 3),
-                          _ColHeader(text: 'Desc',    flex: 3),
-                          _ColHeader(text: 'Date',    flex: 2),
-                          _ColHeader(text: 'Actions', flex: 3, alignRight: true),
+                        child: Row(children: [
+                          const _ColHeader(text: 'ID',   flex: 1),
+                          const _ColHeader(text: 'Name', flex: 3),
+                          const _ColHeader(text: 'Desc', flex: 3),
+                          const _ColHeader(text: 'Date', flex: 2),
+                          // ── Actions column: sirf tab dikhao jab koi bhi permission ho ──
+                          if (_hasActions)
+                            const _ColHeader(text: 'Actions', flex: 3, alignRight: true),
                         ]),
                       ),
+                      // ── Rows ───────────────────────────────────────────
                       ..._pagedRoles.asMap().entries.map((e) {
                         return _RoleRow(
                           role: e.value,
                           isEven: e.key % 2 == 0,
                           trunc: _trunc,
+                          // Permission flags — individually pass karo
+                          canView:   _canView,
+                          canEdit:   _canEdit,
+                          canDelete: _canDelete,
+                          hasActions: _hasActions,
                           onView:   () => _showViewDialog(e.value),
                           onEdit:   () => _showEditDialog(e.value),
                           onDelete: () => _showDeleteDialog(e.value),
                         );
                       }),
+                      // ── Pagination ─────────────────────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
@@ -642,6 +745,13 @@ class _RoleRow extends StatefulWidget {
   final RoleModel role;
   final bool isEven;
   final String Function(String, {int max}) trunc;
+
+  // ── Permission flags ──
+  final bool canView;
+  final bool canEdit;
+  final bool canDelete;
+  final bool hasActions; // true agar koi bhi permission ho
+
   final VoidCallback onView;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -650,6 +760,10 @@ class _RoleRow extends StatefulWidget {
     required this.role,
     required this.isEven,
     required this.trunc,
+    required this.canView,
+    required this.canEdit,
+    required this.canDelete,
+    required this.hasActions,
     required this.onView,
     required this.onEdit,
     required this.onDelete,
@@ -682,6 +796,7 @@ class _RoleRowState extends State<_RoleRow> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // ID
             Expanded(
               flex: 1,
               child: Text('${widget.role.id}',
@@ -690,6 +805,7 @@ class _RoleRowState extends State<_RoleRow> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600)),
             ),
+            // Name
             Expanded(
               flex: 3,
               child: Text(
@@ -702,6 +818,7 @@ class _RoleRowState extends State<_RoleRow> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            // Description
             Expanded(
               flex: 3,
               child: Tooltip(
@@ -723,6 +840,7 @@ class _RoleRowState extends State<_RoleRow> {
                 ),
               ),
             ),
+            // Date
             Expanded(
               flex: 2,
               child: Text(
@@ -732,35 +850,47 @@ class _RoleRowState extends State<_RoleRow> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ActionIconBtn(
-                    icon: Icons.remove_red_eye_outlined,
-                    color: AppColors.textMuted,
-                    bg: AppColors.surfaceAlt,
-                    onTap: widget.onView,
-                  ),
-                  const SizedBox(width: 5),
-                  _ActionIconBtn(
-                    icon: Icons.edit_outlined,
-                    color: AppColors.accent,
-                    bg: AppColors.accentLight,
-                    onTap: widget.onEdit,
-                  ),
-                  const SizedBox(width: 5),
-                  _ActionIconBtn(
-                    icon: Icons.delete_outline_rounded,
-                    color: AppColors.red,
-                    bg: AppColors.redLight,
-                    onTap: widget.onDelete,
-                  ),
-                ],
+            // ── Actions column ────────────────────────────────────────────
+            // Sirf tab dikhao jab hasActions == true
+            if (widget.hasActions)
+              Expanded(
+                flex: 3,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // View button — sirf tab jab canView == true
+                    if (widget.canView) ...[
+                      _ActionIconBtn(
+                        icon: Icons.remove_red_eye_outlined,
+                        color: AppColors.textMuted,
+                        bg: AppColors.surfaceAlt,
+                        onTap: widget.onView,
+                      ),
+                    ],
+                    // Edit button — sirf tab jab canEdit == true
+                    if (widget.canEdit) ...[
+                      if (widget.canView) const SizedBox(width: 5),
+                      _ActionIconBtn(
+                        icon: Icons.edit_outlined,
+                        color: AppColors.accent,
+                        bg: AppColors.accentLight,
+                        onTap: widget.onEdit,
+                      ),
+                    ],
+                    // Delete button — sirf tab jab canDelete == true
+                    if (widget.canDelete) ...[
+                      if (widget.canView || widget.canEdit) const SizedBox(width: 5),
+                      _ActionIconBtn(
+                        icon: Icons.delete_outline_rounded,
+                        color: AppColors.red,
+                        bg: AppColors.redLight,
+                        onTap: widget.onDelete,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -975,13 +1105,12 @@ class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Header ──────────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
                   border: Border(
                       bottom: BorderSide(color: AppColors.border, width: 0.5)),
                 ),
@@ -1005,8 +1134,6 @@ class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
                   _DialogCloseBtn(onTap: _close),
                 ]),
               ),
-
-              // ── Body ────────────────────────────────────────────────────
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
@@ -1046,7 +1173,6 @@ class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
                       const SizedBox(height: 16),
                       Container(height: 0.5, color: AppColors.divider),
                       const SizedBox(height: 16),
-
                       _RoleViewField(
                           label: "Role ID",
                           value: "${widget.role.id}",
@@ -1073,11 +1199,9 @@ class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
                   ),
                 ),
               ),
-
-              // ── Footer ──────────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceAlt,
                   borderRadius: const BorderRadius.vertical(
@@ -1117,7 +1241,6 @@ class _ViewRoleDialogContentState extends State<_ViewRoleDialogContent>
   }
 }
 
-// ─── Role View Field ──────────────────────────────────────────────────────────
 class _RoleViewField extends StatelessWidget {
   final String label, value;
   final IconData icon;
@@ -1159,10 +1282,8 @@ class _RoleViewField extends StatelessWidget {
               child: Text(value,
                   style: TextStyle(
                       fontSize: 13,
-                      color:
-                          isEmpty ? AppColors.textMuted : AppColors.textBody,
-                      fontStyle:
-                          isEmpty ? FontStyle.italic : FontStyle.normal,
+                      color: isEmpty ? AppColors.textMuted : AppColors.textBody,
+                      fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
                       fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis),
             ),
@@ -1219,8 +1340,7 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
     super.dispose();
   }
 
-  void _close() =>
-      _ctrl.reverse().then((_) => Navigator.pop(context));
+  void _close() => _ctrl.reverse().then((_) => Navigator.pop(context));
 
   void _trySave() {
     if (widget.nameCtrl.text.trim().isEmpty) {
@@ -1253,7 +1373,6 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Header ────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
                   decoration: BoxDecoration(
@@ -1294,8 +1413,6 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
                     _DialogCloseBtn(onTap: _close),
                   ]),
                 ),
-
-                // ── Body ──────────────────────────────────────────────────
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
@@ -1332,10 +1449,8 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
                               ),
                             ]),
                           ),
-
                         _RoleSectionLabel("Role information"),
                         const SizedBox(height: 12),
-
                         _RoleFieldLabel("Role Name"),
                         const SizedBox(height: 5),
                         _RoleInputField(
@@ -1343,7 +1458,6 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
                           hint: "Enter role name",
                           icon: Icons.shield_rounded,
                         ),
-
                         const SizedBox(height: 12),
                         _RoleFieldLabel("Description"),
                         const SizedBox(height: 5),
@@ -1357,8 +1471,6 @@ class _EditRoleDialogContentState extends State<_EditRoleDialogContent>
                     ),
                   ),
                 ),
-
-                // ── Footer ────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 14),
@@ -1480,8 +1592,7 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
     super.dispose();
   }
 
-  void _close() =>
-      _ctrl.reverse().then((_) => Navigator.pop(context));
+  void _close() => _ctrl.reverse().then((_) => Navigator.pop(context));
 
   void _trySave() {
     if (widget.nameCtrl.text.trim().isEmpty) {
@@ -1514,7 +1625,6 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Header ────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 18, 14, 18),
                   decoration: BoxDecoration(
@@ -1553,8 +1663,6 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
                     _DialogCloseBtn(onTap: _close),
                   ]),
                 ),
-
-                // ── Body ──────────────────────────────────────────────────
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
@@ -1591,10 +1699,8 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
                               ),
                             ]),
                           ),
-
                         _RoleSectionLabel("Role information"),
                         const SizedBox(height: 12),
-
                         _RoleFieldLabel("Role Name"),
                         const SizedBox(height: 5),
                         _RoleInputField(
@@ -1602,7 +1708,6 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
                           hint: "e.g. Sales Manager",
                           icon: Icons.shield_rounded,
                         ),
-
                         const SizedBox(height: 12),
                         _RoleFieldLabel("Description"),
                         const SizedBox(height: 5),
@@ -1616,8 +1721,6 @@ class _CreateRoleDialogContentState extends State<_CreateRoleDialogContent>
                     ),
                   ),
                 ),
-
-                // ── Footer ────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 14),

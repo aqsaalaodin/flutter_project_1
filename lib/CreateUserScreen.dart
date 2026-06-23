@@ -56,7 +56,10 @@ class _AuthService {
   static void invalidate() => _cachedToken = null;
 
   static Future<String> _login() async {
-    final url = Uri.parse("$_baseUrl/auth/login");
+    // ⚠️ NOTE: tumhare dashboard/login screen mein actual endpoint
+    // "/auth/signin" hai, "/auth/login" nahi. Pehle confirm karo
+    // Postman se ke konsa sahi hai, phir yahan match karo.
+    final url = Uri.parse("$_baseUrl/auth/signin");
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
@@ -108,7 +111,9 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   final TextEditingController emailController    = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  String? selectedRole;
+  // ✅ CHANGED: ab role-name string ki jagah role-ID store hoga
+  int? selectedRoleId;
+
   bool isActive          = true;
   bool isPasswordVisible = false;
   bool _isLoading        = false;
@@ -117,15 +122,13 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   late Animation<double>   _fadeAnim;
   late Animation<Offset>   _slideAnim;
 
-  final List<String> roles = [
-    'Super Admin',
-    'Admin',
-    'Manager',
-    'Vendor',
-    'User',
-  ];
+  // ✅ CHANGED: hardcoded list hata di. Ab roles API se aayenge.
+  List<Map<String, dynamic>> roles = [];
+  bool _rolesLoading = true;
+  String? _rolesError;
 
-  static const _baseUrl = "http://125.209.66.147:5001/api/users";
+  static const _baseUrl     = "http://125.209.66.147:5001/api/users";
+  static const _rolesUrl    = "http://125.209.66.147:5001/api/roles";
 
   @override
   void initState() {
@@ -137,6 +140,8 @@ class _CreateUserScreenState extends State<CreateUserScreen>
             begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
+
+    _fetchRoles(); // ✅ NEW: roles ko API se fetch karo
   }
 
   @override
@@ -146,6 +151,82 @@ class _CreateUserScreenState extends State<CreateUserScreen>
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  // ✅ NEW: API se actual roles fetch karo (Super Admin, finance,
+  // Marketing manager, Auditor, etc — jo bhi backend mein real hain)
+  Future<void> _fetchRoles() async {
+    setState(() {
+      _rolesLoading = true;
+      _rolesError   = null;
+    });
+
+    try {
+      final token = await _AuthService.getToken();
+      final res = await http.get(
+        Uri.parse(_rolesUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      print("Roles Status: ${res.statusCode}");
+      print("Roles Body: ${res.body}");
+
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body);
+        setState(() {
+          roles = data
+              .map((r) => {
+                    "id"  : r['id'],
+                    "name": r['name'].toString(),
+                  })
+              .toList()
+              .cast<Map<String, dynamic>>();
+          _rolesLoading = false;
+        });
+      } else if (res.statusCode == 401) {
+        _AuthService.invalidate();
+        final freshToken = await _AuthService.getToken();
+        final retryRes = await http.get(
+          Uri.parse(_rolesUrl),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $freshToken",
+          },
+        );
+        if (retryRes.statusCode == 200) {
+          final List data = jsonDecode(retryRes.body);
+          setState(() {
+            roles = data
+                .map((r) => {
+                      "id"  : r['id'],
+                      "name": r['name'].toString(),
+                    })
+                .toList()
+                .cast<Map<String, dynamic>>();
+            _rolesLoading = false;
+          });
+        } else {
+          setState(() {
+            _rolesLoading = false;
+            _rolesError   = 'Roles load nahi hue (${retryRes.statusCode})';
+          });
+        }
+      } else {
+        setState(() {
+          _rolesLoading = false;
+          _rolesError   = 'Roles load nahi hue (${res.statusCode})';
+        });
+      }
+    } catch (e) {
+      print("Roles fetch error: $e");
+      setState(() {
+        _rolesLoading = false;
+        _rolesError   = 'Roles fetch error: $e';
+      });
+    }
   }
 
   // ── User Create — with auto-token + retry on 401 ──────────────────────────
@@ -179,6 +260,10 @@ class _CreateUserScreenState extends State<CreateUserScreen>
   /// Returns true = success/handled, false = needs retry (401)
   Future<bool> _postCreateUser(String token, {bool isRetry = false}) async {
     final url = Uri.parse(_baseUrl);
+
+    // ✅ CHANGED: ab "role" (naam) ki jagah "roleId" (number) bhej rahe hain.
+    // ⚠️ IMPORTANT: agar backend ka field naam alag hai (jaise "role_id"),
+    // to Postman se confirm karke yahan field naam change karo.
     final response = await http.post(
       url,
       headers: {
@@ -189,7 +274,7 @@ class _CreateUserScreenState extends State<CreateUserScreen>
         "username" : usernameController.text.trim(),
         "email"    : emailController.text.trim(),
         "password" : passwordController.text,
-        "role"     : selectedRole,
+        "roleId"   : selectedRoleId,
         "is_active": isActive,
       }),
     );
@@ -418,27 +503,9 @@ class _CreateUserScreenState extends State<CreateUserScreen>
                       const _SectionLabel('Permissions'),
                       const SizedBox(height: 10),
 
-                      DropdownButtonFormField<String>(
-                        value: selectedRole,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: _C.textMuted),
-                        dropdownColor: _C.surface,
-                        style: const TextStyle(
-                            color: _C.textHead,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600),
-                        decoration: _dec('Role *',
-                            prefixIcon: Icons.admin_panel_settings_rounded),
-                        items: roles
-                            .map((role) => DropdownMenuItem(
-                                  value: role,
-                                  child: Text(role),
-                                ))
-                            .toList(),
-                        onChanged: (v) => setState(() => selectedRole = v),
-                        validator: (v) =>
-                            v == null ? 'Please select role' : null,
-                      ),
+                      // ✅ CHANGED: Dropdown ab dynamic roles dikhata hai,
+                      // hardcoded list nahi. Loading/error states bhi handle hain.
+                      _buildRoleDropdown(),
 
                       const SizedBox(height: 12),
 
@@ -602,6 +669,81 @@ class _CreateUserScreenState extends State<CreateUserScreen>
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ NEW: Role dropdown ka dynamic builder — loading / error / data states
+  Widget _buildRoleDropdown() {
+    if (_rolesLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: _C.bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _C.border, width: 0.8),
+        ),
+        child: Row(
+          children: const [
+            SizedBox(
+              width: 16, height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Loading roles...',
+                style: TextStyle(color: _C.textMuted, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    if (_rolesError != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _C.redLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _C.red.withOpacity(0.3), width: 0.8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: _C.red, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(_rolesError!,
+                  style: const TextStyle(color: _C.red, fontSize: 11.5)),
+            ),
+            GestureDetector(
+              onTap: _fetchRoles,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                    color: _C.red, borderRadius: BorderRadius.circular(8)),
+                child: const Text('Retry',
+                    style: TextStyle(color: Colors.white, fontSize: 11)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      value: selectedRoleId,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _C.textMuted),
+      dropdownColor: _C.surface,
+      style: const TextStyle(
+          color: _C.textHead, fontSize: 13.5, fontWeight: FontWeight.w600),
+      decoration:
+          _dec('Role *', prefixIcon: Icons.admin_panel_settings_rounded),
+      items: roles
+          .map((r) => DropdownMenuItem<int>(
+                value: r['id'] as int,
+                child: Text(r['name'].toString()),
+              ))
+          .toList(),
+      onChanged: (v) => setState(() => selectedRoleId = v),
+      validator: (v) => v == null ? 'Please select role' : null,
     );
   }
 }
