@@ -4,6 +4,7 @@ import 'package:flutter_project_1/NotificationService.dart';
 import 'package:flutter_project_1/Rolemanagement.dart';
 import 'package:flutter_project_1/UserManagementScreen.dart';
 import 'package:flutter_project_1/loginscreen.dart';
+import 'package:flutter_project_1/statistics_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
@@ -2165,6 +2166,13 @@ class _ProfileDrawer extends StatelessWidget {
                                 ),
                               ),
                             ).then((_) => onRefreshDashboard());
+                          } else if (visible[i].featureKey == 'statistics') {
+                            Navigator.push(
+                              ctx,
+                              MaterialPageRoute(
+                                builder: (_) => const StatisticsScreen(),
+                              ),
+                            );
                           }
                         },
                       ),
